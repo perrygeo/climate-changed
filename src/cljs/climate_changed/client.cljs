@@ -1,7 +1,7 @@
 (ns climate-changed.client
   (:require
-   [cljs.reader :as reader]
    [climate-changed.shared :as shared]
+   [cljs.reader :as reader]
    [garden.core :refer [css]]
    [reagent.core :as r]
    [reagent.dom.client :as rdom]))
@@ -37,9 +37,7 @@
      (when message [:p {:class "message"} message])
      (when error   [:p {:class "error"} error])]))
 
-;; ---------------------------------------------------------------------------
 ;; Render app to DOM
-;; ---------------------------------------------------------------------------
 
 (defonce root (atom nil))
 

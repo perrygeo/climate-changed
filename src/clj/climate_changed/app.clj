@@ -13,6 +13,15 @@
         ["healthz" #'h/healthz-handler]
         ["api/hello" #'h/hello-handler]]])
 
+(def route-handler
+  (make-handler routes))
+
+(defn bidi-or-resources
+  "Try bidi routes first; fall through to static resource serving."
+  [request]
+  (or (route-handler request)
+      (h/resources-handler request)))
+
 (defn wrap-edn-response
   "Middleware that serialises Clojure collection body to EDN
   and sets the Content-Type header to application/edn.
@@ -26,15 +35,6 @@
             (assoc :body (pr-str (:body response)))
             (assoc-in [:headers "Content-Type"] "application/edn"))
         response))))
-
-(def bidi-handler
-  (make-handler routes))
-
-(defn bidi-or-resources
-  "Try bidi routes first; fall through to static resource serving."
-  [request]
-  (or (bidi-handler request)
-      (h/resources-handler request)))
 
 (def app-handler
   (-> bidi-or-resources

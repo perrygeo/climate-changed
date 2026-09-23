@@ -1,5 +1,5 @@
 volumes:
-  pgdata18:
+  pgdata18-cc:
     driver: local
 
 services:
@@ -20,7 +20,7 @@ services:
       - "5432"
     restart: unless-stopped
     volumes:
-      - pgdata18:/var/lib/postgresql
+      - pgdata18-cc:/var/lib/postgresql
       - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
       - ./postgresql.conf:/etc/postgresql/postgresql.conf
       - ./pg_hba.conf:/etc/postgresql/pg_hba.conf

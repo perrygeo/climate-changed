@@ -22,16 +22,15 @@
   (halt)
   (reset)
 
-  ;; Inspect the database connection from the current system
+  ;; Inspect the database connection pool from the current system
   (:climate-changed/datasource state/system)
 
   ;; ClojureScript Build process
   (shadow/watch :app)
   (open-browser "http://localhost:8081")
 
-  ;; current namespace info
+  ;; current namespace info, hack
   (symbol (namespace ::x))
-  (keys (ns-publics (symbol (namespace ::x)))) ;; symbols, clj only!
 
   ;; REPL mgmt
   ;; 1. Start a *second* REPL

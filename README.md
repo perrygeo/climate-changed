@@ -33,6 +33,7 @@ The server side is JVM Clojure.
 * ring
 * jetty9
 * hikaricp database connection pooling
+* migratus migrations (SQL files in `src/sql/migrations/`)
 
 The server namespaces are split by concern:
 

@@ -24,7 +24,8 @@
     (b/delete {:path "target"})
 
     ;; Copy server source and resource files into class-dir
-    (b/copy-dir {:src-dirs   ["src/clj" "resources"]
+    ;; (src/sql so the migrations end up in the uberjar)
+    (b/copy-dir {:src-dirs   ["src/clj" "src/sql" "resources"]
                  :target-dir class-dir})
 
     ;; AOT-compile server namespaces so the main class is available
