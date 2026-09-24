@@ -9,13 +9,14 @@ The goal is to provide a starter repo with everything wired together just like I
 
 
 ## Source code
-6 key source files:
+7 key source files:
 
 ```
  src
 ├──  clj/climate_changed/
 │   ├──  app.clj
 │   ├──  components.clj
+│   ├──  db.clj
 │   ├──  handlers.clj
 │   └──  main.clj
 ├──  cljc/climate_changed/
@@ -34,6 +35,8 @@ The server side is JVM Clojure.
 * jetty9
 * hikaricp database connection pooling
 * migratus migrations (SQL files in `src/sql/migrations/`)
+* honeysql queries (`db.clj`)
+* `GET /api/locations` returns all locations as GeoJSON (RFC 7946)
 
 The server namespaces are split by concern:
 

@@ -8,7 +8,7 @@ default:
 
 dev:
 	@echo "Running dev REPL ... see 'dev/user.clj' for instructions"
-	PORT=8081 clj -M:dev
+	PORT=8081 clojure -M:dev
 
 release-client:
 	npx shadow-cljs release app

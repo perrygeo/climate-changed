@@ -8,19 +8,21 @@
 
 (set! *warn-on-reflection* true)
 
-(def routes
+(defn routes
+  "bidi routes; handlers that need the database close over the datasource."
+  [datasource]
   ["/" [["" #'h/index-handler]
         ["healthz" #'h/healthz-handler]
-        ["api/hello" #'h/hello-handler]]])
+        ["api/hello" #'h/hello-handler]
+        ["api/locations" (h/locations-handler datasource)]]])
 
-(def route-handler
-  (make-handler routes))
-
-(defn bidi-or-resources
+(defn routes-or-resources
   "Try bidi routes first; fall through to static resource serving."
-  [request]
-  (or (route-handler request)
-      (h/resources-handler request)))
+  [datasource]
+  (let [route-handler (make-handler (routes datasource))]
+    (fn [request]
+      (or (route-handler request)
+          (h/resources-handler request)))))
 
 (defn wrap-edn-response
   "Middleware that serialises Clojure collection body to EDN
@@ -36,8 +38,11 @@
             (assoc-in [:headers "Content-Type"] "application/edn"))
         response))))
 
-(def app-handler
-  (-> bidi-or-resources
+(defn app-handler
+  "The ring middleware stack around the routes; `datasource` is handed to
+  any handler that needs the database."
+  [datasource]
+  (-> (routes-or-resources datasource)
       wrap-edn-response
       wrap-params
       wrap-content-type

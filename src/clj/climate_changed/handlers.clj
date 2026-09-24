@@ -1,5 +1,7 @@
 (ns climate-changed.handlers
   (:require
+   [cheshire.core :as json]
+   [climate-changed.db :as db]
    [climate-changed.shared :as s]
    [ring.middleware.resource :refer [wrap-resource]]
    [ring.util.response :as resp]))
@@ -10,6 +12,15 @@
   {:status  200
    :headers {"Content-Type" "application/json"}
    :body    "\"ok\""})
+
+(defn locations-handler
+  "GeoJSON endpoint: every location in the database, serialised to
+  RFC 7946 text. The datasource is captured at system init."
+  [ds]
+  (fn [_req]
+    {:status  200
+     :headers {"Content-Type" "application/geo+json"}
+     :body    (json/generate-string (db/locations-feature-collection ds))}))
 
 (defn hello-handler
   "Demo API endpoint."

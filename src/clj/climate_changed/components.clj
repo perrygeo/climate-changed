@@ -1,6 +1,6 @@
 (ns climate-changed.components
   (:require
-   [climate-changed.app :refer [app-handler]]
+   [climate-changed.app :as app]
    [integrant.core :as ig]
    [migratus.core :as migratus]
    [next.jdbc.connection :as jdbc-conn]
@@ -59,5 +59,5 @@
 (defmethod ig/init-key :climate-changed/handler
   ;; Handlers that need the database can destructure it from `opts`; the
   ;; reference below keeps the datasource initialized as part of the system.
-  [_ _opts]
-  app-handler)
+  [_ {:keys [datasource]}]
+  (app/app-handler datasource))

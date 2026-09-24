@@ -57,4 +57,11 @@
      :color         "var(--text-primary)"
      :cursor        "pointer"
      :font-size     "0.95rem"}]
-   [:.btn:hover {:background "var(--bg-selected)"}]])
+   [:.btn:hover {:background "var(--bg-selected)"}]
+   ;; Sizing for the cartoj/react-map-gl container (the map itself has no
+   ;; intrinsic height, so this class is required for it to render).
+   [:.cartoj-interactive-map
+    {:margin    0
+     :height    "480px"
+     :width     "100%"
+     :max-width "960px"}]])
