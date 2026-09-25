@@ -1,10 +1,13 @@
-.PHONY: default dev clean release release-client release-server
+.PHONY: default dev clean release release-client release-server test test-clj test-cljs
 
 default:
 	@echo "Usage:"
-	@echo "  make clean   - clean temporary files"
-	@echo "  make dev     - development REPL"
-	@echo "  make release - production build"
+	@echo "  make clean     - clean temporary files"
+	@echo "  make dev       - development REPL"
+	@echo "  make release   - production build"
+	@echo "  make test      - run all tests (JVM and Node)"
+	@echo "  make test-clj  - run Clojure tests on the JVM"
+	@echo "  make test-cljs - run ClojureScript tests on Node"
 
 dev:
 	@echo "Running dev REPL ... see 'dev/user.clj' for instructions"
@@ -21,3 +24,14 @@ clean:
 	rm -rf ./resources/public/js/
 
 release: clean release-client release-server
+
+test-clj:
+	clojure -X:test
+
+test-cljs:
+	npx shadow-cljs compile test && node target/node-tests.js
+
+test: test-clj test-cljs
+
+era:
+	./src/py/era5-timeseries.py

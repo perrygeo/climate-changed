@@ -7,4 +7,6 @@
                 :modules    {:main {:init-fn climate-changed.client/init}}
                 :compiler-options {:warnings {:redef false}}
                 :js-options {:resolve {"process" {:target  :npm
-                                                  :require "process/browser"}}}}}}
+                                                  :require "process/browser"}}}}
+          :test {:target    :node-test
+                 :output-to "target/node-tests.js"}}}
