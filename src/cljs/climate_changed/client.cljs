@@ -60,16 +60,14 @@
   (when-let [^js m @map-ref]
     (.setProjection m (clj->js {:type "globe"}))))
 
+(defn coords-to-maplibre [p]
+  (clj->js {:lng (:longitude p)
+            :lat (:latitude p)}))
 (defn select-location! [_city]
-  (let [^js m @map-ref
-        p     @last-point
-        d     (clj->js {:lng (:longitude p)
-                        :lat (:latitude p)})]
-    (println d)
-    (when (and m p)
-      (.flyTo m (clj->js {:center   d
-                          :zoom     2
-                          :duration 3000})))))
+  (when-let [^js m @map-ref]
+    (.flyTo m (clj->js {:center   (coords-to-maplibre @last-point)
+                        :zoom     4
+                        :duration 3000}))))
 
 (defn app []
   (let [{:keys [loading? message error]} @state]
@@ -78,18 +76,21 @@
       [:h1 {:class "app-title"} shared/appname]
       [:span {:class "status"} (if loading? "Loading…" "Ready")]]
      [:div {:class "side-panel"}
-      [:div {:class "dataview"} (str @last-point)]
       [:button {:class    "btn select-location"
                 :on-click #(select-location! "foo")
                 :disabled loading?}
        "Zoom to locations"]
+      [:hr]
+      [:div (str (grid/snap-coords (:longitude @last-point) (:latitude @last-point)))]
+      [:hr]
+      [:div {:class "dataview"} (str @last-point)]
       (when message [:p {:class "message"} message])
       (when error   [:p {:class "error"} error])]
      [cartoj/interactive-map
-      {:initial-view-state {:longitude 0 :latitude 16 :zoom 1}
+      {:initial-view-state {:longitude 0 :latitude 16 :zoom 2.5}
        :on-click           click-handler
        :projection         "globe"
-       :map-style          "https://tiles.openfreemap.org/styles/positron"}
+       :map-style          "https://pmtiles.perrygeo.com/styles/dark.json"}
       [interop/reset-map-ref! map-ref]
       [cartoj/source {:id   "cities"
                       :type "geojson"
