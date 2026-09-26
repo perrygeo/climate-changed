@@ -2,6 +2,8 @@
   (:require
    ["maplibre-gl/dist/maplibre-gl.css"]
    [cartoj.core :as cartoj]
+   [cartoj.interop :as interop]
+   [climate-changed.era5-grid :as grid]
    [climate-changed.shared :as shared]
    [cljs.reader :as reader]
    [garden.core :refer [css]]
@@ -46,19 +48,49 @@
       (.catch (fn [err]
                 (swap! state assoc :loading? false :error (str err))))))
 
+(defonce last-point (r/atom nil))
+
+(defonce map-ref (r/atom nil))
+
+(defn click-handler [^js e]
+  (js/console.log e)
+  (reset! last-point (interop/coords-from-evt e)))
+
+(defn set-globe! []
+  (when-let [^js m @map-ref]
+    (.setProjection m (clj->js {:type "globe"}))))
+
+(defn select-location! [_city]
+  (let [^js m @map-ref
+        p     @last-point
+        d     (clj->js {:lng (:longitude p)
+                        :lat (:latitude p)})]
+    (println d)
+    (when (and m p)
+      (.flyTo m (clj->js {:center   d
+                          :zoom     2
+                          :duration 3000})))))
+
 (defn app []
   (let [{:keys [loading? message error]} @state]
     [:div
-     [:h1 {:class "app-header"} shared/appname]
-     [:button {:class    "btn"
-               :on-click #(fetch-hello!)
-               :disabled loading?}
-      (if loading? "Loading…" "Say hello to the server")]
-     (when message [:p {:class "message"} message])
-     (when error   [:p {:class "error"} error])
+     [:header {:class "app-header"}
+      [:h1 {:class "app-title"} shared/appname]
+      [:span {:class "status"} (if loading? "Loading…" "Ready")]]
+     [:div {:class "side-panel"}
+      [:div {:class "dataview"} (str @last-point)]
+      [:button {:class    "btn select-location"
+                :on-click #(select-location! "foo")
+                :disabled loading?}
+       "Zoom to locations"]
+      (when message [:p {:class "message"} message])
+      (when error   [:p {:class "error"} error])]
      [cartoj/interactive-map
       {:initial-view-state {:longitude 0 :latitude 16 :zoom 1}
+       :on-click           click-handler
+       :projection         "globe"
        :map-style          "https://tiles.openfreemap.org/styles/positron"}
+      [interop/reset-map-ref! map-ref]
       [cartoj/source {:id   "cities"
                       :type "geojson"
                       :data "api/locations"}
@@ -85,14 +117,23 @@
 
 (defonce root (atom nil))
 
+(defn inject-styles!
+  "Compile the garden styles in climate-changed.shared and inject them into
+  <head>. Called on every hot reload so style edits apply without a refresh."
+  []
+  (let [style (or (js/document.querySelector "style#climate-changed-styles")
+                  (doto (.createElement js/document "style")
+                    (.setAttribute "id" "climate-changed-styles")))]
+    (when (and (.-head js/document)
+               (not (.-parentNode style)))
+      (.appendChild (.-head js/document) style))
+    (set! (.-textContent style) (css shared/styles))))
+
 (defn ^:dev/after-load re-render []
+  (inject-styles!)
   (.render ^js @root (r/as-element [app])))
 
 (defn init []
-  ;; Compile the garden styles in climate-changed.shared and inject them into <head>.
-  (let [style (.createElement js/document "style")]
-    (set! (.-textContent style) (css shared/styles))
-    (.appendChild (.-head js/document) style))
   (reset! root (rdom/create-root (js/document.getElementById "app")))
   (re-render))
 
@@ -103,6 +144,8 @@
   (swap! state update :message (fn [x] (str x "!")))
   (swap! state update :loading? (fn [x] (not x)))
   (meta #'init)
+
+  (set-globe!)
 
   ;; clojurescript repl can reach into the browser
   js/document

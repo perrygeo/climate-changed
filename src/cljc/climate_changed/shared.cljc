@@ -42,11 +42,49 @@
                :--color-success    "#3fb950"
                :--color-error      "#f85149"}])
    [:body
-    {:margin "1.5rem"
+    {:margin 0
+     :overflow "hidden"
      :background-color "var(--bg-primary)"
      :color "var(--text-primary)"
      :font-family      "system-ui, sans-serif"}]
-   [:.app-header {:margin-bottom "0.5rem"}]
+   ;; Header floats over the full-screen map: translucent theme background so
+   ;; the map shows through, title left / status right.
+   [:.app-header
+    {:position        "fixed"
+     :top             0
+     :left            0
+     :right           0
+     :z-index         10
+     :display         "flex"
+     :align-items     "center"
+     :justify-content "space-between"
+     :padding         "0.5rem 1rem"
+     :background      "color-mix(in srgb, var(--bg-primary) 72%, transparent)"
+     :backdrop-filter "blur(4px)"}]
+   [:.app-title
+    {:margin    0
+     :font-size "1.1rem"}]
+   [:.status
+    {:font-size "0.85rem"
+     :color     "var(--text-secondary)"}]
+   ;; Floating translucent panel on the right holding the dataview + controls.
+   [:.side-panel
+    {:position        "fixed"
+     :top             "4rem"
+     :right           "1rem"
+     :z-index         10
+     :width           "40%"
+     :padding         "1rem"
+     :border-radius   "8px"
+     :border          "1px solid var(--border-primary)"
+     :background      "color-mix(in srgb, var(--bg-primary) 80%, transparent)"
+     :backdrop-filter "blur(4px)"
+     :box-shadow      "0 4px 16px rgba(0,0,0,0.12)"}]
+   [:.dataview
+    {:font-family   "monospace"
+     :font-size     "0.85rem"
+     :margin-bottom "0.75rem"
+     :word-break    "break-all"}]
    [:.message {:color "var(--text-link)"}]
    [:.error {:color "var(--color-error)"}]
    [:.btn
@@ -58,10 +96,15 @@
      :cursor        "pointer"
      :font-size     "0.95rem"}]
    [:.btn:hover {:background "var(--bg-selected)"}]
+   [:.select-location {:width "100%"}]
    ;; Sizing for the cartoj/react-map-gl container (the map itself has no
-   ;; intrinsic height, so this class is required for it to render).
+   ;; intrinsic height, so this class is required for it to render). Fixed to
+   ;; the viewport so the map fills the whole screen behind the overlays.
    [:.cartoj-interactive-map
-    {:margin    0
-     :height    "480px"
-     :width     "100%"
-     :max-width "960px"}]])
+    {:position  "fixed"
+     :inset     "0"
+     :z-index   0
+     :margin    0
+     :height    "100vh"
+     :width     "100vw"
+     :max-width "none"}]])
