@@ -22,6 +22,30 @@
       :else                        (shell/sh "xdg-open" url))))
 
 ;; ==========================================================================
+;;  Fix for dead agent pools (RejectedExecutionException "... [Terminated ...]")
+;; ==========================================================================
+(defn revive-agents!
+  "Re-create Clojure's agent executors after shadow-cljs (or anything else)
+  has called `shutdown-agents` in this long-lived dev JVM.
+
+  shadow-cljs's server shutdown path (remote-stop! / -main after
+  wait-for-stop!) calls `shutdown-agents`, which permanently terminates
+  clojure.lang.Agent/soloExecutor and /pooledExecutor. After that, `future`,
+  `pmap`, `clojure.java.shell/sh`, etc. fail with RejectedExecutionException
+  until the JVM is restarted — or until you call this fn, which swaps in
+  fresh executors via reflection (the fields are volatile public static).
+
+  Call this after any \"... [Terminated, pool size = 0 ...]\" error."
+  []
+  (let [solo   (.getField clojure.lang.Agent "soloExecutor")
+        pooled (.getField clojure.lang.Agent "pooledExecutor")]
+    (.set solo nil (java.util.concurrent.Executors/newCachedThreadPool))
+    (.set pooled nil (java.util.concurrent.Executors/newFixedThreadPool
+                      (+ 2 (.availableProcessors (Runtime/getRuntime)))))
+    (println "agent executors revived:"
+             (str clojure.lang.Agent/soloExecutor))))
+
+;; ==========================================================================
 ;;  Automatically start the core services for local development
 ;; ==========================================================================
 (integrant.repl/set-prep!
@@ -49,6 +73,10 @@
 
   ;; current namespace info, hack
   (symbol (namespace ::x))
+  (->> (all-ns)
+       (map ns-name)
+       (filter #(str/starts-with? %1 "climate-changed"))
+       (sort))
 
   ;; REPL mgmt
   ;; 1. Start a *second* REPL
@@ -65,5 +93,12 @@
   (require 'clojure.repl.deps)
   (clojure.repl.deps/sync-deps) ; reads deps.edn and hot-loads any new/changed deps
   ;; CLJS deps require a reload
+
+  ;; If `future`/`sh` throw RejectedExecutionException "... [Terminated ...]",
+  ;; shadow-cljs's shutdown path called (shutdown-agents). Revive the pools:
+  (revive-agents!)
+
   ;;
   )
+
+

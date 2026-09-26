@@ -8,8 +8,9 @@ default:
 	@echo "  make test      - run all tests (JVM and Node)"
 	@echo "  make test-clj  - run Clojure tests on the JVM"
 	@echo "  make test-cljs - run ClojureScript tests on Node"
+	@echo "  make db-up|down - manage local Postgres database"
 
-dev:
+dev: db-up
 	@echo "Running dev REPL ... see 'dev/user.clj' for instructions"
 	PORT=8081 clojure -M:dev
 
@@ -31,7 +32,15 @@ test-clj:
 test-cljs:
 	npx shadow-cljs compile test && node target/node-tests.js
 
-test: test-clj test-cljs
+test: db-up test-clj test-cljs
+
+db-up:
+	cd infra/ && docker compose up -d
+
+db-down:
+	cd infra/ && docker compose down
 
 era:
 	./src/py/era5-timeseries.py
+
+
