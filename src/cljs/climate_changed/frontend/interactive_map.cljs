@@ -5,15 +5,18 @@
    [cartoj.interop :as interop]
    [climate-changed.frontend.state :as state]))
 
+;; Basemap styles vendored from pmtiles.perrygeo.com and served from
+;; resources/public/styles via the ring resource middleware.
+(def light-style "/styles/light.json")
+
+(def dark-style  "/styles/dark.json")
+
 (defn click-handler [^js e]
   (reset! state/selected-location (interop/coords-from-evt e)))
 
 (defn set-globe! []
   (when-let [^js m @state/map-ref]
     (.setProjection m (clj->js {:type "globe"}))))
-
-(def light-style "https://pmtiles.perrygeo.com/styles/light.json")
-(def dark-style  "https://pmtiles.perrygeo.com/styles/dark.json")
 
 (defn watch-color-scheme!
   "Set `state/map-style` from the OS dark/light preference, updating on change."

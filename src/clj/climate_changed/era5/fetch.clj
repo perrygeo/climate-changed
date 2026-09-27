@@ -33,14 +33,7 @@
 
 (defn- run-cmd
   "Run `cmd` (vector of strings) synchronously, returning a map with
-  :out, :err and :exit like `clojure.java.shell/sh`.
-
-  `sh` is deliberately avoided: it uses `future` internally, which submits
-  to Clojure's agent thread pool. Once that pool has been shut down (e.g.
-  after an integrant.repl reset) every `sh` call throws
-  RejectedExecutionException. ProcessBuilder does not use the agent pool.
-  stderr is merged into stdout so the single stream can be read to EOF
-  without the deadlock risk that normally forces concurrent reads."
+  :out, :err and :exit to match the return value of `clojure.java.shell/sh`"
   [cmd]
   (let [proc (.start (doto (ProcessBuilder. ^java.util.List cmd)
                        (.redirectErrorStream true)))]

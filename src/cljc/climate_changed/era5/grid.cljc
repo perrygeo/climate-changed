@@ -1,4 +1,5 @@
-(ns climate-changed.era5.grid)
+(ns climate-changed.era5.grid
+  "Math for computing coordinates on the ERA5 icechunk dataset")
 
 (defn- rint
   "Round to the nearest integer, ties to even.
@@ -48,8 +49,8 @@
   "The center coordinates of the ERA5 grid cell at [row col]; the inverse
   of `snap-coords`. Returns {:lat ... :lon ...}."
   [row col]
-  (let [lat0  90.0
-        lon0  0.0
-        step  0.25]
+  (let [lat0 90.0
+        lon0 0.0
+        step 0.25]
     {:lat (- lat0 (* row step))
      :lon (+ lon0 (* col step))}))

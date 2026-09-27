@@ -1,7 +1,7 @@
 (ns climate-changed.backend.main
   (:require
    [climate-changed.backend.components]
-   [climate-changed.common :as shared]
+   [climate-changed.common :as common]
    [clojure.string :as str]
    [integrant.core :as ig])
   (:gen-class))
@@ -13,16 +13,16 @@
   postgresql://user:password@host:5432/db) into a JDBC URL
   (jdbc:postgresql://host:5432/db?user=user&password=password)."
   [url]
-  (let [uri            (java.net.URI. url)
-        scheme         (if (= "postgres" (.getScheme uri)) "postgresql" (.getScheme uri))
+  (let [uri             (java.net.URI. url)
+        scheme          (if (= "postgres" (.getScheme uri)) "postgresql" (.getScheme uri))
         [user password] (some-> (.getRawUserInfo uri) (str/split #":" 2))
-        base           (str "jdbc:" scheme "://" (.getHost uri)
-                            (when-not (neg? (.getPort uri)) (str ":" (.getPort uri)))
-                            (.getPath uri))
-        params         (cond-> []
-                         user     (conj (str "user=" user))
-                         password (conj (str "password=" password)))
-        query          (.getQuery uri)]
+        base            (str "jdbc:" scheme "://" (.getHost uri)
+                             (when-not (neg? (.getPort uri)) (str ":" (.getPort uri)))
+                             (.getPath uri))
+        params          (cond-> []
+                          user     (conj (str "user=" user))
+                          password (conj (str "password=" password)))
+        query           (.getQuery uri)]
     (cond-> base
       (or (seq params) query)
       (str "?" (str/join "&" (cond-> params query (conj query)))))))
@@ -57,5 +57,5 @@
   (let [system (ig/init config)]
     (.addShutdownHook (Runtime/getRuntime)
                       (Thread. ^Runnable (fn [] (when system  (ig/halt! system)))))
-    (println (str shared/appname " started on http://localhost:" (:port (:climate-changed/server config))))
+    (println (str common/appname " started on http://localhost:" (:port (:climate-changed/server config))))
     @(promise)))
