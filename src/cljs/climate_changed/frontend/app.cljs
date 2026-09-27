@@ -1,5 +1,5 @@
 (ns climate-changed.frontend.app
-  "Core business logic: location data loading and the top-level app view."
+  "Core app logic: location data loading fns and  views."
   (:require
    [cartoj.core :as cartoj]
    [cartoj.interop :as interop]

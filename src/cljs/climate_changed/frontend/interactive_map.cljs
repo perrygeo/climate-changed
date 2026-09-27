@@ -5,8 +5,6 @@
    [cartoj.interop :as interop]
    [climate-changed.frontend.state :as state]))
 
-;; Basemap styles vendored from pmtiles.perrygeo.com and served from
-;; resources/public/styles via the ring resource middleware.
 (def light-style "/styles/light.json")
 
 (def dark-style  "/styles/dark.json")

@@ -30,8 +30,8 @@
 (defmethod ig/init-key :climate-changed/migrations
   [_ {:keys [datasource migration-dir]}]
   (println "Run database migrations")
-  (let [config {:store        :database
-                :db           {:datasource datasource}
+  (let [config {:store         :database
+                :db            {:datasource datasource}
                 :migration-dir (or migration-dir "migrations")}]
     ;; Migratus returns :failure (rather than throwing) when a migration
     ;; fails, so convert that into an exception to abort system startup.
