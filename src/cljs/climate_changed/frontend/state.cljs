@@ -15,3 +15,5 @@
 (defonce map-ref (r/atom nil))
 
 (defonce map-style (r/atom nil))
+
+(defonce era5-summary (r/atom nil))

@@ -43,3 +43,13 @@
      :col col
      :lat (- lat0 (* row step))
      :lon (+ lon0 (* col step))}))
+
+(defn cell-center
+  "The center coordinates of the ERA5 grid cell at [row col]; the inverse
+  of `snap-coords`. Returns {:lat ... :lon ...}."
+  [row col]
+  (let [lat0  90.0
+        lon0  0.0
+        step  0.25]
+    {:lat (- lat0 (* row step))
+     :lon (+ lon0 (* col step))}))

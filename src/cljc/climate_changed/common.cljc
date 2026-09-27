@@ -144,6 +144,23 @@
     {:padding   "0.4rem 0.8rem"
      :font-size "0.85rem"
      :color     "var(--text-muted)"}]
+   ;; ERA5 climate summary card in the side panel.
+   [:.era5-summary {:margin-bottom "0.75rem"}]
+   [:.summary-title
+    {:font-weight "600"
+     :margin      "0 0 0.5rem 0"}]
+   [:.summary-hint {:color "var(--text-muted)"}]
+   [:.summary-table
+    {:border-collapse "collapse"
+     :width           "100%"}]
+   [:.summary-table :th
+    {:text-align  "left"
+     :color       "var(--text-secondary)"
+     :font-weight "400"
+     :padding     "0.15rem 0.5rem 0.15rem 0"}]
+   [:.summary-table :td
+    {:text-align "right"
+     :padding    "0.15rem 0"}]
    ;; Sizing for the cartoj/react-map-gl container (the map itself has no
    ;; intrinsic height, so this class is required for it to render). Fixed to
    ;; the viewport so the map fills the whole screen behind the overlays.

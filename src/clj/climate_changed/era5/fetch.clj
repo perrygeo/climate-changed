@@ -2,7 +2,6 @@
   (:require
    [climate-changed.era5.grid :as grid]
    [clojure.java.io :as io]
-   [clojure.java.shell :refer [sh]]
    [clojure.string :as str]
    [tech.v3.dataset :as ds]
    [tech.v3.datatype :as dtype]
@@ -32,6 +31,24 @@
   ;; path = f"era_ts/{row}/{col}/{var}.parquet"
   (str "era_ts/" row "/" col "/" varname ".parquet"))
 
+(defn- run-cmd
+  "Run `cmd` (vector of strings) synchronously, returning a map with
+  :out, :err and :exit like `clojure.java.shell/sh`.
+
+  `sh` is deliberately avoided: it uses `future` internally, which submits
+  to Clojure's agent thread pool. Once that pool has been shut down (e.g.
+  after an integrant.repl reset) every `sh` call throws
+  RejectedExecutionException. ProcessBuilder does not use the agent pool.
+  stderr is merged into stdout so the single stream can be read to EOF
+  without the deadlock risk that normally forces concurrent reads."
+  [cmd]
+  (let [proc (.start (doto (ProcessBuilder. ^java.util.List cmd)
+                       (.redirectErrorStream true)))]
+    {:out  (with-open [r (io/reader (.getInputStream proc))]
+             (slurp r))
+     :err  ""
+     :exit (.waitFor proc)}))
+
 (defn fetch-ts
   "Fetch timeseries ERA5 data for the given pixel."
   [varname row col]
@@ -43,9 +60,12 @@
       ;; effectively, this acts as an ever-growing cache in storage.
       ;; hopefully bound by the fact that callers won't try anything stupid.
       ;; like downloading all rows x cols x vars timeseries ... 100+ TB easy
-      (let [{:keys [out err exit]} (apply sh (era-download-cmd varname row col))]
-        (when (seq err) (binding [*out* *err*] (print err)))
-        (when-not (zero? exit) (throw (ex-info "Command failed" {:exit exit :err err})))
+      (let [{:keys [out exit]} (run-cmd (era-download-cmd varname row col))]
+        (when-not (zero? exit)
+          (throw (ex-info "Command failed"
+                          {:exit exit
+                           :out  out
+                           :cmd  (era-download-cmd varname row col)})))
         (assert (= (str/trim out) parquet-path))))
     ;; fetch from permanent storage and return a clean dataset
     (->

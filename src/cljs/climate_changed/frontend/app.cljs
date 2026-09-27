@@ -35,6 +35,68 @@
 (comment
   (fetch-locations!))
 
+(defn fetch-era5-summary!
+  "Snap `loc` to the ERA5 grid and fetch that cell's climate summary into
+  `state/era5-summary`."
+  [{:keys [longitude latitude]}]
+  (let [{:keys [row col]} (grid/snap-coords longitude latitude)]
+    (reset! state/era5-summary {:loading? true})
+    (-> (js/fetch (str "/api/era5-summary/" row "/" col))
+        (.then (fn [resp]
+                 (if (.-ok resp)
+                   (.json resp)
+                   (throw (js/Error. (str "HTTP " (.-status resp)))))))
+        (.then (fn [^js data]
+                 (reset! state/era5-summary (js->clj data :keywordize-keys true))))
+        (.catch (fn [err]
+                  (reset! state/era5-summary {:error (str err)}))))))
+
+(defonce _era5-summary-watch
+  ;; Whenever the selected location changes, (re)load the ERA5 summary for
+  ;; its snapped grid cell; clear it when the selection is cleared.
+  (add-watch state/selected-location :era5-summary
+             (fn [_ _ _ loc]
+               (if (and loc (:longitude loc) (:latitude loc))
+                 (fetch-era5-summary! loc)
+                 (reset! state/era5-summary nil)))))
+
+(defn- fmt-value
+  "Format a summary statistic. Kelvin values render as °C; everything else
+  shows two decimals with its unit."
+  [x units]
+  (case units
+    "K" (str (.toFixed (- x 273.15) 1) " °C")
+    (str (.toFixed x 2) " " units)))
+
+(defn- fmt-coord [x]
+  (.toFixed x 2))
+
+(defn era5-summary-view []
+  (let [s @state/era5-summary]
+    [:div {:class "era5-summary"}
+     (cond
+       (nil? s)
+       [:p {:class "summary-hint"} "Click a location to load its climate summary"]
+
+       (:loading? s)
+       [:p {:class "summary-hint"} "Loading climate summary…"]
+
+       (:error s)
+       [:p {:class "error"} (:error s)]
+
+       :else
+       [:div {:class "dataview"}
+        [:p {:class "summary-title"}
+         (str (:var s) " · cell (" (:row s) ", " (:col s) ") · "
+              (fmt-coord (:lat s)) "°, " (fmt-coord (:lon s)) "°")]
+        [:table {:class "summary-table"}
+         [:tbody
+          [:tr [:th "mean"] [:td (fmt-value (:mean s) (:units s))]]
+          [:tr [:th "min"]  [:td (fmt-value (:min s) (:units s))]]
+          [:tr [:th "max"]  [:td (fmt-value (:max s) (:units s))]]
+          [:tr [:th "obs"]  [:td (:n s)]]
+          [:tr [:th "period"] [:td (str (subs (:start s) 0 4) " – " (subs (:end s) 0 4))]]]]])]))
+
 (defn app []
   (let [{:keys [loading? message error]} @state/state]
     [:div
@@ -44,7 +106,7 @@
      [:div {:class "side-panel"}
       [search/location-typeahead]
       [:hr]
-      [:div (str (grid/snap-coords (:longitude @state/selected-location) (:latitude @state/selected-location)))]
+      [era5-summary-view]
       [:hr]
       [:div {:class "dataview"} (str @state/selected-location)]
       (when message [:p {:class "message"} message])

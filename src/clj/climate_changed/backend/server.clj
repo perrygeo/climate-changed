@@ -14,6 +14,7 @@
   ["/" [["" #'h/index-handler]
         ["healthz" #'h/healthz-handler]
         ["api/hello" #'h/hello-handler]
+        [["api/era5-summary/" :row "/" :col] #'h/era5-summary-handler]
         ["api/locations" (h/locations-handler datasource)]]])
 
 (defn routes-or-resources
