@@ -1,4 +1,4 @@
-(ns climate-changed.db
+(ns climate-changed.models.locations
   (:require
    [honey.sql :as sql]
    [next.jdbc :as jdbc]))

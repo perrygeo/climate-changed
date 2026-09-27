@@ -1,15 +1,13 @@
-(ns climate-changed.shared
+(ns climate-changed.common
   (:require [garden.stylesheet :refer [at-media]]))
 
 (def appname "Climate Changed")
-
-(def hello-path "/api/hello")
 
 ;; ---------------------------------------------------------------------------
 ;; App styles as garden data
 ;; ---------------------------------------------------------------------------
 ;;
-;; Compiled to CSS by the client at startup (see climate-changed.client/init). Living in
+;; Compiled to CSS by the client at startup (see climate-changed.frontend.main/init). Living in
 ;; .cljc means the server could also render them (e.g. for server-side
 ;; rendering) from the same source of truth.
 
@@ -42,10 +40,10 @@
                :--color-success    "#3fb950"
                :--color-error      "#f85149"}])
    [:body
-    {:margin 0
-     :overflow "hidden"
+    {:margin           0
+     :overflow         "hidden"
      :background-color "var(--bg-primary)"
-     :color "var(--text-primary)"
+     :color            "var(--text-primary)"
      :font-family      "system-ui, sans-serif"}]
    ;; Header floats over the full-screen map: translucent theme background so
    ;; the map shows through, title left / status right.

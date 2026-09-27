@@ -1,12 +1,9 @@
-(ns climate-changed.shared-test
-  (:require [clojure.test :refer [deftest is testing]]
-            [climate-changed.shared :as shared]))
+(ns climate-changed.common-test
+  (:require [climate-changed.common :as shared]
+            [clojure.test :refer [deftest is testing]]))
 
 (deftest appname-test
   (is (= "Climate Changed" shared/appname)))
-
-(deftest hello-path-test
-  (is (= "/api/hello" shared/hello-path)))
 
 (deftest styles-test
   (testing "styles is a non-empty vector of garden data"

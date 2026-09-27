@@ -1,6 +1,6 @@
-(ns climate-changed.db-test
+(ns climate-changed.models.locations-test
   (:require [clojure.test :refer [deftest is testing]]
-            [climate-changed.db :as db]))
+            [climate-changed.models.locations :as db]))
 
 (deftest locations-sql-test
   (let [[sql] db/locations-sql]          ; honey.sql/format returns [sql & params]
@@ -10,7 +10,7 @@
     (is (re-find #"(?i)ST_Y" sql))))
 
 (deftest feature-test
-  (let [feature #'climate-changed.db/feature]   ; defn- -> access via var
+  (let [feature #'climate-changed.models.locations/feature]   ; defn- -> access via var
     (testing "row with coordinates becomes a GeoJSON Point feature"
       (is (= {:type       "Feature"
               :id         7

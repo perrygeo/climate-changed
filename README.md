@@ -9,20 +9,33 @@ The goal is to provide a starter repo with everything wired together just like I
 
 
 ## Source code
-7 key source files:
+
+Key source files:
 
 ```
  src
 ├──  clj/climate_changed/
-│   ├──  app.clj
-│   ├──  components.clj
-│   ├──  db.clj
-│   ├──  handlers.clj
-│   └──  main.clj
+│   ├──  backend/
+│   │   ├──  components.clj
+│   │   ├──  handlers.clj
+│   │   ├──  main.clj
+│   │   └──  server.clj
+│   ├──  era5/
+│   │   └──  fetch.clj
+│   └──  models/
+│       └──  locations.clj
 ├──  cljc/climate_changed/
-│   └──  shared.cljc
+│   ├──  common.cljc
+│   └──  era5/
+│       ├──  grid.cljc
+│       └──  variables.cljc
 └──  cljs/climate_changed/
-    └──  client.cljs
+    └──  frontend/
+        ├──  app.cljs
+        ├──  interactive_map.cljs
+        ├──  main.cljs
+        ├──  search.cljs
+        └──  state.cljs
 ```
 
 ### Server
@@ -35,23 +48,26 @@ The server side is JVM Clojure.
 * jetty9
 * hikaricp database connection pooling
 * migratus migrations (SQL files in `src/sql/migrations/`)
-* honeysql queries (`db.clj`)
+* honeysql queries (`models/locations.clj`)
 * `GET /api/locations` returns all locations as GeoJSON (RFC 7946)
 
 The server namespaces are split by concern:
 
-* `main.clj` - integrant config and entry point
-* `components.clj` - integrant init/halt methods for the components
-* `app.clj` - bidi routes and the ring middleware stack
-* `handlers.clj` - the individual ring handlers
+* `backend/main.clj` - integrant config and entry point
+* `backend/components.clj` - integrant init/halt methods for the components
+* `backend/server.clj` - bidi routes and the ring middleware stack
+* `backend/handlers.clj` - the individual ring handlers
 
 ### Client
 
 The client side is ClojureScript compiled to JS
 
-* reagant for components
+* reagent for components
 * shadow-cljs builds
 * garden for css
+
+Client code lives in `frontend/`, split by concern: `main` (entry point),
+`app` (top-level view), `search`, `interactive-map`, and `state` (ratoms).
 
 ### Shared
 

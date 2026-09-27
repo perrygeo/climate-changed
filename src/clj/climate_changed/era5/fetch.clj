@@ -1,6 +1,6 @@
-(ns climate-changed.era5
+(ns climate-changed.era5.fetch
   (:require
-   [climate-changed.era5-grid :as grid]
+   [climate-changed.era5.grid :as grid]
    [clojure.java.io :as io]
    [clojure.java.shell :refer [sh]]
    [clojure.string :as str]
@@ -15,11 +15,11 @@
    "--col" (str col)
    "--var" (str varname)])
 
-;; tmd's parquet reader only honors the legacy TIMESTAMP_MILLIS/MICROS
-;; converted types, so the modern logical-type timestamps (ns) that
-;; pyarrow writes come through as raw int64 epoch-nanoseconds.
-;; valid_time is UTC and hourly, so the ns -> us conversion is exact.
 (defn- fix-valid-time [data]
+  ;; tmd's parquet reader only honors the legacy TIMESTAMP_MILLIS/MICROS
+  ;; converted types, so the modern logical-type timestamps (ns) that
+  ;; pyarrow writes come through as raw int64 epoch-nanoseconds.
+  ;; valid_time is UTC and hourly, so the ns -> us conversion is exact.
   ;; column names are strings in the dataset map
   (ds/update-column
    data "valid_time"
@@ -52,7 +52,7 @@
      (pq/parquet->ds parquet-path)
      (fix-valid-time))))
 
-(comment ;; testing
+(comment ;; test fetch-ts
   (time (let [{:keys [row col]} (grid/snap-coords -105.0844 40.5853)
               data              (fetch-ts "t2m" row col)]
           (->

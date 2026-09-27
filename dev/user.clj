@@ -1,25 +1,34 @@
 (ns user
   (:require
-   [climate-changed.main :as main]
-   [clojure.java.shell :as shell]
+   [climate-changed.backend.main :as main]
    [clojure.string :as str]
    [integrant.core :as ig]
    [integrant.repl]
    [integrant.repl.state :as state]
    [shadow.cljs.devtools.api :as shadow]
-   [shadow.cljs.devtools.server]))
+   [shadow.cljs.devtools.server])
+  (:import
+   (java.io File)))
 
 ;; ==========================================================================
 ;;  Utility fns
 ;; ==========================================================================
 (defn- open-browser
-  "Cross-platform: uses `open` (macOS), `xdg-open` (Linux), or `start` (Windows)"
+  "Cross-platform: opens `url` in the default browser. Fire-and-forget via
+  ProcessBuilder rather than clojure.java.shell/sh, because sh uses `future`
+  internally and fails with RejectedExecutionException once the agent thread
+  pool has been shut down."
   [url]
-  (let [os (System/getProperty "os.name")]
-    (cond
-      (str/starts-with? os "Mac") (shell/sh "open" url)
-      (str/starts-with? os "Win") (shell/sh "cmd" "/c" "start" url)
-      :else                        (shell/sh "xdg-open" url))))
+  (let [os        (System/getProperty "os.name")
+        cmd       (cond
+                    (str/starts-with? os "Mac") ["open" url]
+                    (str/starts-with? os "Win") ["cmd" "/c" "start" url]
+                    :else                       ["xdg-open" url])
+        null-file (File. (if (str/starts-with? os "Win") "NUL" "/dev/null"))]
+    (.start (doto (ProcessBuilder. ^java.util.List cmd)
+              (.redirectOutput null-file)
+              (.redirectError null-file)))
+    nil))
 
 ;; ==========================================================================
 ;;  Automatically start the core services for local development
@@ -45,6 +54,8 @@
 
   ;; ClojureScript Build process
   (shadow/watch :app)
+
+  ;; Open the app in the default browser
   (open-browser "http://localhost:8081")
 
   ;; current namespace info, hack

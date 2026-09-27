@@ -1,7 +1,7 @@
-(ns climate-changed.main
+(ns climate-changed.backend.main
   (:require
-   [climate-changed.components]
-   [climate-changed.shared :as shared]
+   [climate-changed.backend.components]
+   [climate-changed.common :as shared]
    [clojure.string :as str]
    [integrant.core :as ig])
   (:gen-class))

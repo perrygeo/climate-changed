@@ -9,7 +9,6 @@ FROM
 
 ;
 
--- TODO add 10 more for locations to round out major cities in different biomes
 -- Coordinates are (longitude, latitude) in WGS84 (SRID 4326)
 INSERT INTO locations (name, geom)
     VALUES ('San Francisco', ST_SetSRID (ST_Point (-122.4194, 37.7749), 4326));

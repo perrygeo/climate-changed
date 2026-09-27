@@ -44,6 +44,6 @@
     (b/uber {:class-dir class-dir
              :uber-file uber-file
              :basis     basis
-             :main      'climate-changed.main})
+             :main      'climate-changed.backend.main})
 
     (println "\n=== Uberjar built:" uber-file "===")))

@@ -1,8 +1,8 @@
-(ns climate-changed.handlers
+(ns climate-changed.backend.handlers
   (:require
    [cheshire.core :as json]
-   [climate-changed.db :as db]
-   [climate-changed.shared :as s]
+   [climate-changed.models.locations :as db]
+   [climate-changed.common :as s]
    [ring.middleware.resource :refer [wrap-resource]]
    [ring.util.response :as resp]))
 

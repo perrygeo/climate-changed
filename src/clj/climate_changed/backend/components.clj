@@ -1,6 +1,6 @@
-(ns climate-changed.components
+(ns climate-changed.backend.components
   (:require
-   [climate-changed.app :as app]
+   [climate-changed.backend.server :as server]
    [integrant.core :as ig]
    [migratus.core :as migratus]
    [next.jdbc.connection :as jdbc-conn]
@@ -60,4 +60,4 @@
   ;; Handlers that need the database can destructure it from `opts`; the
   ;; reference below keeps the datasource initialized as part of the system.
   [_ {:keys [datasource]}]
-  (app/app-handler datasource))
+  (server/app-handler datasource))

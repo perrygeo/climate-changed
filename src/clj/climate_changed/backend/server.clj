@@ -1,7 +1,7 @@
-(ns climate-changed.app
+(ns climate-changed.backend.server
   (:require
    [bidi.ring :refer [make-handler]]
-   [climate-changed.handlers :as h]
+   [climate-changed.backend.handlers :as h]
    [ring.middleware.content-type :refer [wrap-content-type]]
    [ring.middleware.not-modified :refer [wrap-not-modified]]
    [ring.middleware.params :refer [wrap-params]]))
