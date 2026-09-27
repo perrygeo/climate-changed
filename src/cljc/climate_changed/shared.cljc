@@ -96,7 +96,56 @@
      :cursor        "pointer"
      :font-size     "0.95rem"}]
    [:.btn:hover {:background "var(--bg-selected)"}]
-   [:.select-location {:width "100%"}]
+   [:.btn:disabled
+    {:opacity 0.5
+     :cursor  "default"}]
+   ;; Typeahead location search in the side panel: input + dropdown of matches.
+   [:.typeahead
+    {:position "relative"
+     :width    "100%"}]
+   [:.typeahead-row
+    {:display "flex"
+     :gap     "0.5rem"}]
+   [:.typeahead-row :button
+    {:flex-shrink "0"}]
+   [:.typeahead-input
+    {:width         "100%"
+     :box-sizing    "border-box"
+     :padding       "0.4rem 0.8rem"
+     :border        "1px solid var(--border-secondary)"
+     :border-radius "6px"
+     :background    "var(--bg-secondary)"
+     :color         "var(--text-primary)"
+     :font-size     "0.95rem"}]
+   [:.typeahead-input:focus
+    {:outline      "none"
+     :border-color "var(--text-link)"}]
+   [:.typeahead-input:disabled {:opacity 0.6}]
+   [:.typeahead-list
+    {:position      "absolute"
+     :top           "100%"
+     :left          0
+     :right         0
+     :z-index       20
+     :max-height    "16rem"
+     :overflow-y    "auto"
+     :margin        "0.25rem 0 0 0"
+     :padding       0
+     :list-style    "none"
+     :border        "1px solid var(--border-primary)"
+     :border-radius "6px"
+     :background    "var(--bg-primary)"
+     :box-shadow    "0 4px 16px rgba(0,0,0,0.12)"}]
+   [:.typeahead-item
+    {:padding   "0.4rem 0.8rem"
+     :cursor    "pointer"
+     :font-size "0.9rem"}]
+   [:.typeahead-item:hover :.typeahead-item.selected
+    {:background "var(--bg-selected)"}]
+   [:.typeahead-more
+    {:padding   "0.4rem 0.8rem"
+     :font-size "0.85rem"
+     :color     "var(--text-muted)"}]
    ;; Sizing for the cartoj/react-map-gl container (the map itself has no
    ;; intrinsic height, so this class is required for it to render). Fixed to
    ;; the viewport so the map fills the whole screen behind the overlays.

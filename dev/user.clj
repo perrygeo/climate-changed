@@ -68,9 +68,7 @@
   ;; After editing deps.edn, call:
   (require 'clojure.repl.deps)
   (clojure.repl.deps/sync-deps) ; reads deps.edn and hot-loads any new/changed deps
-  ;; CLJS deps require a reload
 
+  ;; CLJS deps require a reload
   ;;
   )
-
-

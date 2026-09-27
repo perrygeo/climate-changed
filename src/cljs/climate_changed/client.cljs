@@ -5,7 +5,7 @@
    [cartoj.interop :as interop]
    [climate-changed.era5-grid :as grid]
    [climate-changed.shared :as shared]
-   [cljs.reader :as reader]
+   [clojure.string :as str]
    [garden.core :refer [css]]
    [reagent.core :as r]
    [reagent.dom.client :as rdom]))
@@ -15,59 +15,144 @@
            :message  nil
            :error    nil}))
 
-(defn fetch-locations!
-  "Hit the locations API, parse the Geo body and update `state` accordingly."
-  []
-  (swap! state assoc :loading? true :error nil :message nil)
-  (-> (js/fetch "/api/locations")
-      (.then (fn [resp] (.text resp)))
-      (.then (fn [text]
-               (swap! state assoc
-                      :loading? false
-                      :message (try
-                                 (:message text)
-                                 (catch :default _ text)))))
-      (.catch (fn [err]
-                (swap! state assoc :loading? false :error (str err))))))
+(defonce all-locations (r/atom nil))
 
-(comment
-  (fetch-locations!))
-
-(defn fetch-hello!
-  "Hit the hello API, parse the EDN body and update `state` accordingly."
-  []
-  (swap! state assoc :loading? true :error nil :message nil)
-  (-> (js/fetch shared/hello-path)
-      (.then (fn [resp] (.text resp)))
-      (.then (fn [text]
-               (swap! state assoc
-                      :loading? false
-                      :message (try
-                                 (:message (reader/read-string text))
-                                 (catch :default _ text)))))
-      (.catch (fn [err]
-                (swap! state assoc :loading? false :error (str err))))))
-
-(defonce last-point (r/atom nil))
+(defonce selected-location (r/atom nil))
 
 (defonce map-ref (r/atom nil))
 
+;; ================================================================
+
+(defn feature->loc
+  "Convert a keywordized GeoJSON feature into the flat location map used
+  throughout the client: {:id :name :longitude :latitude}."
+  [{:keys [id geometry properties]}]
+  (let [[lon lat] (:coordinates geometry)]
+    {:id        id
+     :name      (:name properties)
+     :longitude lon
+     :latitude  lat}))
+
+(defn fetch-locations!
+  "Hit the locations API, parse the GeoJSON body, reset `all-locations`
+  and update `state` accordingly."
+  []
+  (swap! state assoc :loading? true :error nil :message nil)
+  (-> (js/fetch "/api/locations")
+      (.then (fn [resp] (.json resp)))
+      (.then (fn [^js geojson]
+               (reset! all-locations
+                       (mapv feature->loc (:features (js->clj geojson :keywordize-keys true))))
+               (swap! state assoc :loading? false)))
+      (.catch (fn [err]
+                (swap! state assoc :loading? false :error (str err))))))
+(comment
+  (fetch-locations!))
+
 (defn click-handler [^js e]
-  (js/console.log e)
-  (reset! last-point (interop/coords-from-evt e)))
+  (reset! selected-location (interop/coords-from-evt e)))
 
 (defn set-globe! []
   (when-let [^js m @map-ref]
     (.setProjection m (clj->js {:type "globe"}))))
 
+(def light-style "https://pmtiles.perrygeo.com/styles/light.json")
+(def dark-style  "https://pmtiles.perrygeo.com/styles/dark.json")
+
+(defonce map-style (r/atom nil))
+
+(defn watch-color-scheme!
+  "Set `map-style` from the OS dark/light preference, updating on change."
+  []
+  (let [mql        (.matchMedia js/window "(prefers-color-scheme: dark)")
+        set-style! (fn [^js m]
+                     (reset! map-style (if (.-matches m) dark-style light-style)))]
+    (set-style! mql)
+    (.addEventListener mql "change" set-style!)))
+
 (defn coords-to-maplibre [p]
   (clj->js {:lng (:longitude p)
             :lat (:latitude p)}))
-(defn select-location! [_city]
+
+(defn select-location! [loc]
+  (reset! selected-location loc)
   (when-let [^js m @map-ref]
-    (.flyTo m (clj->js {:center   (coords-to-maplibre @last-point)
-                        :zoom     4
+    (.flyTo m (clj->js {:center   (coords-to-maplibre loc)
+                        :zoom     5
                         :duration 3000}))))
+
+(defn- loc-matches
+  "Loaded locations whose name contains `query` (case-insensitive)."
+  [query]
+  (when (seq query)
+    (let [q (str/lower-case query)]
+      (filter #(str/includes? (str/lower-case (:name %)) q) @all-locations))))
+
+(defn- pick-location!
+  "Select `loc` from the typeahead,
+  clear the input, close the dropdown, fly to the location."
+  [query open? loc]
+  (reset! query "")
+  (reset! open? false)
+  (select-location! loc))
+
+(defn location-typeahead
+  "Search field that filters the loaded `all-locations` by name. Selecting a
+  match flies the map to it and sets `selected-location`."
+  []
+  (let [query (r/atom "")
+        open? (r/atom false)
+        hi    (r/atom 0)]
+    (fn []
+      (let [matches (loc-matches @query)
+            results (take 10 matches)
+            more    (- (count matches) (count results))]
+        [:div {:class "typeahead"}
+         [:div {:class "typeahead-row"}
+          [:input {:class       "typeahead-input"
+                   :type        "text"
+                   :value       @query
+                   :placeholder "Search locations…"
+                   :disabled    (nil? @all-locations)
+                   :on-change   (fn [e]
+                                  (reset! query (.. e -target -value))
+                                  (reset! hi 0)
+                                  (reset! open? true))
+                   :on-focus    #(reset! open? true)
+                   :on-blur     #(reset! open? false)
+                   :on-key-down (fn [e]
+                                  (case (.-key e)
+                                    "ArrowDown" (when (seq results)
+                                                  (.preventDefault e)
+                                                  (swap! hi #(mod (inc %) (count results))))
+                                    "ArrowUp"   (when (seq results)
+                                                  (.preventDefault e)
+                                                  (swap! hi #(mod (dec %) (count results))))
+                                    "Enter"     (when-let [loc (nth results @hi nil)]
+                                                  (.preventDefault e)
+                                                  (pick-location! query open? loc))
+                                    "Escape"    (reset! open? false)
+                                    nil))}]
+          [:button {:class    "btn"
+                    :title    "I'm feeling lucky"
+                    :disabled (nil? @all-locations)
+                    :on-click #(when-let [locs @all-locations]
+                                 (pick-location! query open? (rand-nth locs)))}
+           "🎲"]]
+         (when (and @open? (seq results))
+           [:ul {:class "typeahead-list"}
+            (doall
+             (map-indexed
+              (fn [i loc]
+                [:li {:class         (str "typeahead-item" (when (= i @hi) " selected"))
+                      :key           (:id loc)
+                      :on-mouse-down (fn [e]
+                                       (.preventDefault e)
+                                       (pick-location! query open? loc))}
+                 (:name loc)])
+              results))
+            (when (pos? more)
+              [:li {:class "typeahead-more"} (str more " more…")])])]))))
 
 (defn app []
   (let [{:keys [loading? message error]} @state]
@@ -76,21 +161,19 @@
       [:h1 {:class "app-title"} shared/appname]
       [:span {:class "status"} (if loading? "Loading…" "Ready")]]
      [:div {:class "side-panel"}
-      [:button {:class    "btn select-location"
-                :on-click #(select-location! "foo")
-                :disabled loading?}
-       "Zoom to locations"]
+      [location-typeahead]
       [:hr]
-      [:div (str (grid/snap-coords (:longitude @last-point) (:latitude @last-point)))]
+      [:div (str (grid/snap-coords (:longitude @selected-location) (:latitude @selected-location)))]
       [:hr]
-      [:div {:class "dataview"} (str @last-point)]
+      [:div {:class "dataview"} (str @selected-location)]
       (when message [:p {:class "message"} message])
       (when error   [:p {:class "error"} error])]
      [cartoj/interactive-map
       {:initial-view-state {:longitude 0 :latitude 16 :zoom 2.5}
        :on-click           click-handler
        :projection         "globe"
-       :map-style          "https://pmtiles.perrygeo.com/styles/dark.json"}
+       :style-diffing      false
+       :map-style          @map-style}
       [interop/reset-map-ref! map-ref]
       [cartoj/source {:id   "cities"
                       :type "geojson"
@@ -98,21 +181,10 @@
        [cartoj/layer {:id     "cities-circles"
                       :type   "circle"
                       :source "cities"
-                      :paint  {:circle-radius       6
-                               :circle-color        "#ff2"
+                      :paint  {:circle-radius       4
+                               :circle-color        "#ffb"
                                :circle-stroke-width 1
-                               :circle-stroke-color "#a99"}}]
-       [cartoj/layer {:id     "cities-labels"
-                      :type   "symbol"
-                      :source "cities"
-                      :layout {:text-field  ["get" "name"]
-                               :text-size   11
-                               :text-offset [0 0]
-                               :text-anchor "top"}
-                      :paint  {:text-color      "#333"
-                               :text-halo-color "rgba(255,255,235,0.85)"
-                               :text-halo-width 2
-                               :text-halo-blur  1}}]]]]))
+                               :circle-stroke-color "#a99"}}]]]]))
 
 ;; Render app to DOM
 
@@ -136,10 +208,11 @@
 
 (defn init []
   (reset! root (rdom/create-root (js/document.getElementById "app")))
-  (re-render))
+  (watch-color-scheme!)
+  (re-render)
+  (fetch-locations!))
 
 (comment
-  (fetch-hello!)
   state
   (swap! state assoc :message "Hello from the REPL")
   (swap! state update :message (fn [x] (str x "!")))

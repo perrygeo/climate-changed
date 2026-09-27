@@ -1,6 +1,34 @@
 (ns climate-changed.era5-grid)
 
-;; TODO define era-variables
+(def era5-variables
+  {:t2m  {:name  "2 Metre Temperature"
+          :units "K"}
+   :d2m  {:name  "2 Metre Dewpoint Temperature"
+          :units "K"}
+   :u10  {:name  "10 Metre U Wind Component"
+          :units "m s⁻¹"}
+   :v10  {:name  "10 Metre V Wind Component"
+          :units "m s⁻¹"}
+   :sp   {:name  "Surface Pressure"
+          :units "Pa"}
+   :msl  {:name  "Mean Sea Level Pressure"
+          :units "Pa"}
+   :tp   {:name  "Total Precipitation"
+          :units "m"}
+   :sst  {:name  "Sea Surface Temperature"
+          :units "K"}
+   :tcc  {:name  "Total Cloud Cover"
+          :units "(0-1)"}
+   :tcwv {:name  "Total Column Water Vapour"
+          :units "kg m⁻²"}
+   :ssrd {:name  "Surface Solar Radiation Downwards"
+          :units "J m⁻²"}
+   :strd {:name  "Surface Thermal Radiation Downwards"
+          :units "J m⁻²"}
+   :ssr  {:name  "Surface Net Solar Radiation"
+          :units "J m⁻²"}
+   :str  {:name  "Surface Net Thermal Radiation"
+          :units "J m⁻²"}})
 
 (defn- rint
   "Round to the nearest integer, ties to even.
@@ -24,8 +52,8 @@
       longitude: 1440 points, 0.0 .. 359.75 (col 0 = prime meridian)
 
   Inputs:
-    `lat` degrees north, -90..90
-    `lon` degrees east, -180..180 (will be returned in 0..360)
+    `lat` degrees, -90..90
+    `lon` degrees, -180..180 (will be returned in 0..360)
 
   Returns {:row grid-row
            :col grid-col
