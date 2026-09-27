@@ -55,7 +55,9 @@
   ;; ClojureScript Build process
   (shadow/watch :app)
 
-  ;; Open the app in the default browser
+  ;; important,
+  ;; Open the app in the default browser to connect the repl
+  ;; otherwise must reload existing tabs
   (open-browser "http://localhost:8081")
 
   ;; current namespace info, hack
@@ -72,6 +74,8 @@
   ;; 2. Activate the clojurescript repl
   ;; using NeoVim and Conjure - :ConjureShadowSelect app - or
   (shadow/nrepl-select :app)
+  (+ 1 1) ;; if No available JS runtime, see "important" above
+  :cljs/quit
   ;;
   ;; 3. Switch sessions to get back and forth between clj and cljs
   ;; using NeoVim and Conjure - <leader>ss
