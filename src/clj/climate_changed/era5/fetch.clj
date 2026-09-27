@@ -72,7 +72,7 @@
      (pq/parquet->ds parquet-path)
      (fix-valid-time))))
 
-(comment ;; test fetch-ts
+(comment ;; integration test for fetch-ts
   (time (let [{:keys [row col]} (grid/snap-coords -105.0844 40.5853)
               data              (fetch-ts "t2m" row col)]
           (->

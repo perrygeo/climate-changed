@@ -5,6 +5,7 @@
    [cartoj.interop :as interop]
    [climate-changed.common :as shared]
    [climate-changed.era5.grid :as grid]
+   [climate-changed.era5.variables :as vars]
    [climate-changed.frontend.interactive-map :as imap]
    [climate-changed.frontend.search :as search]
    [climate-changed.frontend.state :as state]))
@@ -71,6 +72,19 @@
 (defn- fmt-coord [x]
   (.toFixed x 2))
 
+(defn selected-location-view
+  "Render the currently selected location as a small labeled card instead of
+  dumping raw EDN."
+  []
+  (let [{:keys [name longitude latitude] :as loc} @state/selected-location]
+    [:div {:class "dataview"}
+     (if (nil? loc)
+       [:p {:class "summary-hint"} "No location selected"]
+       [:div {:class "location-card"}
+        [:p {:class "location-name"} (or name "Unnamed location")]
+        [:p {:class "location-coords"}
+         (str (fmt-coord latitude) "°, " (fmt-coord longitude) "°")]])]))
+
 (defn era5-summary-view []
   (let [s @state/era5-summary]
     [:div {:class "era5-summary"}
@@ -87,7 +101,8 @@
        :else
        [:div {:class "dataview"}
         [:p {:class "summary-title"}
-         (str (:var s) " · cell (" (:row s) ", " (:col s) ") · "
+         (str (get-in vars/era5-variables [(keyword (:var s)) :name] (:var s))
+              " · cell (" (:row s) ", " (:col s) ") · "
               (fmt-coord (:lat s)) "°, " (fmt-coord (:lon s)) "°")]
         [:table {:class "summary-table"}
          [:tbody
@@ -105,10 +120,8 @@
       [:span {:class "status"} (if loading? "Loading…" "Ready")]]
      [:div {:class "side-panel"}
       [search/location-typeahead]
-      [:hr]
+      [selected-location-view]
       [era5-summary-view]
-      [:hr]
-      [:div {:class "dataview"} (str @state/selected-location)]
       (when message [:p {:class "message"} message])
       (when error   [:p {:class "error"} error])]
      [cartoj/interactive-map

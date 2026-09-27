@@ -37,4 +37,4 @@
   (when-let [^js m @state/map-ref]
     (.flyTo m (clj->js {:center   (coords-to-maplibre (offset-coords loc 1.2))
                         :zoom     7.5
-                        :duration 5000}))))
+                        :duration 12000}))))
