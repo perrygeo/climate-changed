@@ -8,6 +8,10 @@
   <!-- Jetty logs every thread lifecycle event at DEBUG; keep it quiet. -->
   <logger name="org.eclipse.jetty" level="INFO"/>
 
+  <!-- Hadoop's CodecPool logs at INFO whenever it allocates a fresh gzip
+       decompressor for the parquet read; keep it quiet. -->
+  <logger name="org.apache.hadoop.io.compress.CodecPool" level="WARN"/>
+
   <root level="INFO">
     <appender-ref ref="STDOUT"/>
   </root>
