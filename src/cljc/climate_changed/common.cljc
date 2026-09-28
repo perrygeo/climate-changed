@@ -1,5 +1,4 @@
 (ns climate-changed.common
-  ;; TODO refactor to climate-changed.styles
   (:require [garden.stylesheet :refer [at-media]]))
 
 (def appname "climate, changed.")
