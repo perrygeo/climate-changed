@@ -34,3 +34,6 @@ coverage
 .c8tmp
 
 era_ts/
+
+# Rust
+src/rs/**/target/

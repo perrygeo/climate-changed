@@ -1,0 +1,16 @@
+[package]
+name = "era5-timeseries"
+version = "0.1.0"
+edition = "2021"
+description = "Read an ERA5 point timeseries from the Earthmover icechunk repo and write parquet, in pure Rust (no Python/xarray)."
+
+[dependencies]
+anyhow = "1"
+arrow = "60"
+chrono = "0.4"
+icechunk = "2"
+ndarray = "0.17"
+parquet = "60"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+zarrs = { version = "0.23", features = ["async", "pcodec", "ndarray"] }
+zarrs_icechunk = "0.5"
