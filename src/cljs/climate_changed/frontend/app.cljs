@@ -75,6 +75,9 @@
 (defn- fmt-coord [x]
   (.toFixed x 2))
 
+(defn- fmt-period [{:keys [start end]}]
+  (str (subs start 0 4) " – " (subs end 0 4)))
+
 (defn selected-location-view
   "Render the currently selected location as a small labeled card instead of
   dumping raw EDN."
@@ -108,12 +111,16 @@
               " · cell (" (:row s) ", " (:col s) ") · "
               (fmt-coord (:lat s)) "°, " (fmt-coord (:lon s)) "°")]
         [:table {:class "summary-table"}
+         [:thead
+          [:tr [:th "period"] [:th "mean"] [:th "min"] [:th "max"] [:th "obs"]]]
          [:tbody
-          [:tr [:th "mean"] [:td (fmt-value (:mean s) (:units s))]]
-          [:tr [:th "min"]  [:td (fmt-value (:min s) (:units s))]]
-          [:tr [:th "max"]  [:td (fmt-value (:max s) (:units s))]]
-          [:tr [:th "obs"]  [:td (:n s)]]
-          [:tr [:th "period"] [:td (str (subs (:start s) 0 4) " – " (subs (:end s) 0 4))]]]]])]))
+          (for [p (:periods s)]
+            [:tr {:key (:start p)}
+             [:td (fmt-period p)]
+             [:td (fmt-value (:mean p) (:units s))]
+             [:td (fmt-value (:min p) (:units s))]
+             [:td (fmt-value (:max p) (:units s))]
+             [:td (:n p)]])]]])]))
 
 (defn app []
   (let [{:keys [loading? message error]} @state/state]
