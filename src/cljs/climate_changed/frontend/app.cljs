@@ -1,14 +1,12 @@
 (ns climate-changed.frontend.app
   "Core app logic: location data loading fns and  views."
   (:require
-   [cartoj.core :as cartoj]
-   [cartoj.interop :as interop]
    [climate-changed.common :as shared]
    [climate-changed.era5.grid :as grid]
    [climate-changed.era5.variables :as vars]
+   [climate-changed.frontend.interactive-map :as imap]
    [climate-changed.frontend.search :as search]
-   [climate-changed.frontend.state :as state]
-   [reagent.core :as r]))
+   [climate-changed.frontend.state :as state]))
 
 (defn feature->loc
   "Convert a keywordized GeoJSON feature into the flat location map used
@@ -133,19 +131,4 @@
       [era5-summary-view]
       (when message [:p {:class "message"} message])
       (when error   [:p {:class "error"} error])]
-     [cartoj/interactive-map
-      {:initial-view-state {:longitude 0 :latitude 16 :zoom 2.5}
-       :projection         "globe"
-       :style-diffing      false
-       :map-style          (:map-style @state/state)}
-      [interop/reset-map-ref! (r/cursor state/state [:map-ref])]
-      [cartoj/source {:id   "locations"
-                      :type "geojson"
-                      :data "api/locations"}
-       [cartoj/layer {:id     "locations-layer"
-                      :type   "circle"
-                      :source "locations"
-                      :paint  {:circle-radius       6
-                               :circle-color        "#ffba"
-                               :circle-stroke-width 1
-                               :circle-stroke-color "#a99"}}]]]]))
+     [imap/locations-map]]))
