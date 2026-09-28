@@ -1,7 +1,7 @@
 (ns climate-changed.frontend.app
   "Core app logic: location data loading fns and  views."
   (:require
-   [climate-changed.common :as shared]
+   [climate-changed.common :as common]
    [climate-changed.era5.grid :as grid]
    [climate-changed.era5.variables :as vars]
    [climate-changed.frontend.interactive-map :as imap]
@@ -122,11 +122,13 @@
              [:td (fmt-value (:max p) (:units s))]
              [:td (:n p)]])]]])]))
 
-(defn app []
+(defn app
+  "Markup for the main application div, top level layout"
+  []
   (let [{:keys [loading? message error]} @state/state]
     [:div
      [:header {:class "app-header"}
-      [:h1 {:class "app-title"} shared/appname]
+      [:h1 {:class "app-title"} common/appname]
       [:span {:class "status"} (if loading? "Loading…" "Ready")]]
      [:div {:class "side-panel"}
       [search/location-typeahead]

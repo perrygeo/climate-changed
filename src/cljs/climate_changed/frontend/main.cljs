@@ -2,7 +2,7 @@
   "Application entry point and render-to-DOM scaffolding."
   (:require
    ["maplibre-gl/dist/maplibre-gl.css"]
-   [climate-changed.common :as shared]
+   [climate-changed.common :as common]
    [climate-changed.frontend.app :as app]
    [climate-changed.frontend.interactive-map :as imap]
    [climate-changed.frontend.state :as state]
@@ -22,7 +22,7 @@
     (when (and (.-head js/document)
                (not (.-parentNode style)))
       (.appendChild (.-head js/document) style))
-    (set! (.-textContent style) (css shared/default-style))))
+    (set! (.-textContent style) (css common/default-style))))
 
 (defn ^:dev/after-load re-render []
   (inject-styles!)
