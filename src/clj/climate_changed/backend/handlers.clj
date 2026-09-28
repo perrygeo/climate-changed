@@ -2,13 +2,10 @@
   (:require
    [cheshire.core :as json]
    [climate-changed.common :as s]
-   [climate-changed.era5.fetch :as fetch]
-   [climate-changed.era5.grid :as grid]
-   [climate-changed.era5.variables :as vars]
+   [climate-changed.era5.summary :as summary]
    [climate-changed.models.locations :as db]
    [ring.middleware.resource :refer [wrap-resource]]
-   [ring.util.response :as resp]
-   [tech.v3.dataset :as ds]))
+   [ring.util.response :as resp]))
 
 (set! *warn-on-reflection* true)
 
@@ -48,43 +45,19 @@
   (try (Long/parseLong s)
        (catch NumberFormatException _ nil)))
 
-(defn- descriptive-stats-row
-  "The `ds/descriptive-stats` row for `col-name` as a plain map, or nil."
-  [data col-name]
-  (some #(when (= (:col-name %) col-name) %)
-        (ds/rows (ds/descriptive-stats data))))
-
 (def default-varname "t2m")
 
 (defn era5-summary-handler
-  "ERA5 climate summary for a grid cell. Reads :row and :col from the
-  request's :route-params, fetches the hourly timeseries for the default
-  variable (t2m), and returns its descriptive statistics as JSON."
+  "ERA5 climate summary for a grid cell.
+  Default var for now, returns its descriptive statistics as JSON."
   [{:keys [route-params]}]
   (let [row (->long (:row route-params))
         col (->long (:col route-params))]
     (if (and row col)
-      (let [varname           default-varname
-            data              (fetch/fetch-ts varname row col)
-            vstats            (descriptive-stats-row data varname)
-            tstats            (descriptive-stats-row data "valid_time")
-            {:keys [lat lon]} (grid/cell-center row col)]
+      (let [summary (summary/era5-summary default-varname row col)]
         {:status  200
          :headers {"Content-Type" "application/json"}
-         :body    (json/generate-string
-                   {:row   row
-                    :col   col
-                    :lat   lat
-                    :lon   lon
-                    :var   varname
-                    :units (get-in vars/era5-variables [(keyword varname) :units])
-                    :n     (:n-valid vstats)
-                    :min   (:min vstats)
-                    :mean  (:mean vstats)
-                    :max   (:max vstats)
-                    :sd    (:standard-deviation vstats)
-                    :start (some-> (:min tstats) str)
-                    :end   (some-> (:max tstats) str)})})
+         :body    (json/generate-string summary)})
       {:status  400
        :headers {"Content-Type" "application/json"}
        :body    (json/generate-string {:error "row and col must be integers"})})))
