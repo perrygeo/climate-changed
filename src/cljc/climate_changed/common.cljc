@@ -1,17 +1,12 @@
 (ns climate-changed.common
+  ;; TODO refactor to climate-changed.styles
   (:require [garden.stylesheet :refer [at-media]]))
 
-(def appname "Climate Changed")
+(def appname "climate, changed.")
 
-;; ---------------------------------------------------------------------------
-;; App styles as garden data
-;; ---------------------------------------------------------------------------
-;;
-;; Compiled to CSS by the client at startup (see climate-changed.frontend.main/init). Living in
-;; .cljc means the server could also render them (e.g. for server-side
-;; rendering) from the same source of truth.
-
-(def styles
+(def default-style
+  ;; Compiled to CSS by the client at startup (see climate-changed.frontend.main/init).
+  ;; Written in .cljc for potential server-side rendering
   [[":root"
     {:--bg-primary       "#ffffff"
      :--bg-secondary     "#f6f8fa"

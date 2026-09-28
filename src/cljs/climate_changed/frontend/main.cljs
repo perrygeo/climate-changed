@@ -2,9 +2,9 @@
   "Application entry point and render-to-DOM scaffolding."
   (:require
    ["maplibre-gl/dist/maplibre-gl.css"]
-   [climate-changed.frontend.app :as app]
-   [climate-changed.frontend.interactive-map :as cmap]
    [climate-changed.common :as shared]
+   [climate-changed.frontend.app :as app]
+   [climate-changed.frontend.interactive-map :as imap]
    [climate-changed.frontend.state :as state]
    [garden.core :refer [css]]
    [reagent.core :as r]
@@ -22,7 +22,7 @@
     (when (and (.-head js/document)
                (not (.-parentNode style)))
       (.appendChild (.-head js/document) style))
-    (set! (.-textContent style) (css shared/styles))))
+    (set! (.-textContent style) (css shared/default-style))))
 
 (defn ^:dev/after-load re-render []
   (inject-styles!)
@@ -30,7 +30,7 @@
 
 (defn init []
   (reset! root (rdom/create-root (js/document.getElementById "app")))
-  (cmap/watch-color-scheme!)
+  (imap/watch-color-scheme!)
   (re-render)
   (app/fetch-locations!))
 
@@ -41,7 +41,7 @@
   (swap! state/state update :loading? (fn [x] (not x)))
   (meta #'init)
 
-  (cmap/set-globe!)
+  (imap/set-globe!)
 
   ;; clojurescript repl can reach into the browser
   js/document

@@ -10,18 +10,19 @@
 (def dark-style  "/styles/dark.json")
 
 (defn click-handler [^js e]
-  (reset! state/selected-location (interop/coords-from-evt e)))
+  (swap! state/state assoc :selected-location (interop/coords-from-evt e)))
 
 (defn set-globe! []
-  (when-let [^js m @state/map-ref]
+  (when-let [^js m (:map-ref @state/state)]
     (.setProjection m (clj->js {:type "globe"}))))
 
 (defn watch-color-scheme!
-  "Set `state/map-style` from the OS dark/light preference, updating on change."
+  "Set the `:map-style` state key from the OS dark/light preference,
+  updating on change."
   []
   (let [mql        (.matchMedia js/window "(prefers-color-scheme: dark)")
         set-style! (fn [^js m]
-                     (reset! state/map-style (if (.-matches m) dark-style light-style)))]
+                     (swap! state/state assoc :map-style (if (.-matches m) dark-style light-style)))]
     (set-style! mql)
     (.addEventListener mql "change" set-style!)))
 
@@ -34,8 +35,8 @@
    :latitude  latitude})
 
 (defn select-location! [loc]
-  (reset! state/selected-location loc)
-  (when-let [^js m @state/map-ref]
+  (swap! state/state assoc :selected-location loc)
+  (when-let [^js m (:map-ref @state/state)]
     (.flyTo m (clj->js {:center   (coords-to-maplibre (offset-coords loc 1.2))
                         :zoom     7.5
                         :duration 12000}))))

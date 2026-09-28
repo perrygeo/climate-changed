@@ -8,7 +8,8 @@
    [climate-changed.era5.variables :as vars]
    [climate-changed.frontend.interactive-map :as imap]
    [climate-changed.frontend.search :as search]
-   [climate-changed.frontend.state :as state]))
+   [climate-changed.frontend.state :as state]
+   [reagent.core :as r]))
 
 (defn feature->loc
   "Convert a keywordized GeoJSON feature into the flat location map used
@@ -28,8 +29,8 @@
   (-> (js/fetch "/api/locations")
       (.then (fn [resp] (.json resp)))
       (.then (fn [^js geojson]
-               (reset! state/all-locations
-                       (mapv feature->loc (:features (js->clj geojson :keywordize-keys true))))
+               (swap! state/state assoc :all-locations
+                      (mapv feature->loc (:features (js->clj geojson :keywordize-keys true))))
                (swap! state/state assoc :loading? false)))
       (.catch (fn [err]
                 (swap! state/state assoc :loading? false :error (str err))))))
@@ -38,28 +39,30 @@
 
 (defn fetch-era5-summary!
   "Snap `loc` to the ERA5 grid and fetch that cell's climate summary into
-  `state/era5-summary`."
+  the `:era5-summary` key of the shared state atom."
   [{:keys [longitude latitude]}]
   (let [{:keys [row col]} (grid/snap-coords longitude latitude)]
-    (reset! state/era5-summary {:loading? true})
+    (swap! state/state assoc :era5-summary {:loading? true})
     (-> (js/fetch (str "/api/era5-summary/" row "/" col))
         (.then (fn [resp]
                  (if (.-ok resp)
                    (.json resp)
                    (throw (js/Error. (str "HTTP " (.-status resp)))))))
         (.then (fn [^js data]
-                 (reset! state/era5-summary (js->clj data :keywordize-keys true))))
+                 (swap! state/state assoc :era5-summary (js->clj data :keywordize-keys true))))
         (.catch (fn [err]
-                  (reset! state/era5-summary {:error (str err)}))))))
+                  (swap! state/state assoc :era5-summary {:error (str err)}))))))
 
 (defonce _era5-summary-watch
   ;; Whenever the selected location changes, (re)load the ERA5 summary for
   ;; its snapped grid cell; clear it when the selection is cleared.
-  (add-watch state/selected-location :era5-summary
-             (fn [_ _ _ loc]
-               (if (and loc (:longitude loc) (:latitude loc))
-                 (fetch-era5-summary! loc)
-                 (reset! state/era5-summary nil)))))
+  (add-watch state/state :era5-summary
+             (fn [_ _ old new]
+               (let [loc (:selected-location new)]
+                 (when (not= (:selected-location old) loc)
+                   (if (and loc (:longitude loc) (:latitude loc))
+                     (fetch-era5-summary! loc)
+                     (swap! state/state assoc :era5-summary nil)))))))
 
 (defn- fmt-value
   "Format a summary statistic. Kelvin values render as °C; everything else
@@ -76,7 +79,7 @@
   "Render the currently selected location as a small labeled card instead of
   dumping raw EDN."
   []
-  (let [{:keys [name longitude latitude] :as loc} @state/selected-location]
+  (let [{:keys [name longitude latitude] :as loc} (:selected-location @state/state)]
     [:div {:class "dataview"}
      (if (nil? loc)
        [:p {:class "summary-hint"} "No location selected"]
@@ -86,7 +89,7 @@
          (str (fmt-coord latitude) "°, " (fmt-coord longitude) "°")]])]))
 
 (defn era5-summary-view []
-  (let [s @state/era5-summary]
+  (let [s (:era5-summary @state/state)]
     [:div {:class "era5-summary"}
      (cond
        (nil? s)
@@ -129,8 +132,8 @@
        :on-click           imap/click-handler
        :projection         "globe"
        :style-diffing      false
-       :map-style          @state/map-style}
-      [interop/reset-map-ref! state/map-ref]
+       :map-style          (:map-style @state/state)}
+      [interop/reset-map-ref! (r/cursor state/state [:map-ref])]
       [cartoj/source {:id   "cities"
                       :type "geojson"
                       :data "api/locations"}

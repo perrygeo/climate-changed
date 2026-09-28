@@ -2,7 +2,7 @@
   "Location typeahead: filters the loaded locations by name and flies the
   map to the selected match."
   (:require
-   [climate-changed.frontend.interactive-map :as cmap]
+   [climate-changed.frontend.interactive-map :as imap]
    [climate-changed.frontend.state :as state]
    [clojure.string :as str]
    [reagent.core :as r]))
@@ -12,7 +12,7 @@
   [query]
   (when (seq query)
     (let [q (str/lower-case query)]
-      (filter #(str/includes? (str/lower-case (:name %)) q) @state/all-locations))))
+      (filter #(str/includes? (str/lower-case (:name %)) q) (:all-locations @state/state)))))
 
 (defn- pick-location!
   "Select `loc` from the typeahead,
@@ -20,7 +20,7 @@
   [query open? loc]
   (reset! query "")
   (reset! open? false)
-  (cmap/select-location! loc))
+  (imap/select-location! loc))
 
 (defn location-typeahead
   "Search field that filters the loaded `all-locations` by name. Selecting a
@@ -39,7 +39,7 @@
                    :type        "text"
                    :value       @query
                    :placeholder "Search locations…"
-                   :disabled    (nil? @state/all-locations)
+                   :disabled    (nil? (:all-locations @state/state))
                    :on-change   (fn [e]
                                   (reset! query (.. e -target -value))
                                   (reset! hi 0)
@@ -61,8 +61,8 @@
                                     nil))}]
           [:button {:class    "btn"
                     :title    "I'm feeling lucky"
-                    :disabled (nil? @state/all-locations)
-                    :on-click #(when-let [locs @state/all-locations]
+                    :disabled (nil? (:all-locations @state/state))
+                    :on-click #(when-let [locs (:all-locations @state/state)]
                                  (pick-location! query open? (rand-nth locs)))}
            "🎲"]]
          (when (and @open? (seq results))
