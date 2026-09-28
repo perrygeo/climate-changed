@@ -50,7 +50,7 @@
         (.catch (fn [err]
                   (swap! state/state assoc :era5-summary {:error (str err)}))))))
 
-(defonce _era5-summary-watch
+(defonce era5-summary-watch
   ;; Whenever the selected location changes, (re)load the ERA5 summary for
   ;; its snapped grid cell; clear it when the selection is cleared.
   (add-watch state/state :era5-summary
@@ -60,6 +60,9 @@
                    (if (and loc (:longitude loc) (:latitude loc))
                      (fetch-era5-summary! loc)
                      (swap! state/state assoc :era5-summary nil)))))))
+
+(comment
+  era5-summary-watch)
 
 (defn- fmt-value
   "Format a summary statistic. Kelvin values render as °C; everything else
