@@ -22,15 +22,15 @@
   "Hit the locations API, parse the GeoJSON body, reset `all-locations`
   and update `state` accordingly."
   []
-  (swap! state/state assoc :loading? true :error nil :message nil)
+  (swap! state/state assoc :loading-locations? true :error nil :message nil)
   (-> (js/fetch "/api/locations")
       (.then (fn [resp] (.json resp)))
       (.then (fn [^js geojson]
                (swap! state/state assoc :all-locations
                       (mapv feature->loc (:features (js->clj geojson :keywordize-keys true))))
-               (swap! state/state assoc :loading? false)))
+               (swap! state/state assoc :loading-locations? false)))
       (.catch (fn [err]
-                (swap! state/state assoc :loading? false :error (str err))))))
+                (swap! state/state assoc :loading-locations? false :error (str err))))))
 (comment
   (fetch-locations!))
 
@@ -126,11 +126,11 @@
 (defn app
   "Markup for the main application div, top level layout"
   []
-  (let [{:keys [loading? message error]} @state/state]
+  (let [{:keys [loading-locations? message error]} @state/state]
     [:div
      [:header {:class "app-header"}
       [:h1 {:class "app-title"} common/appname]
-      [:span {:class "status"} (if loading? "Loading…" "Ready")]]
+      [:span {:class "status"} (when loading-locations? "Loading…")]]
      [:div {:class "side-panel"}
       [search/location-typeahead]
       [selected-location-view]

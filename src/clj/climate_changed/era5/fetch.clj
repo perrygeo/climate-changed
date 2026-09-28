@@ -8,11 +8,43 @@
    [tech.v3.datatype.datetime :as dt-dt]
    [tech.v3.libs.parquet :as pq]))
 
+(defn- extract-binary!
+  "Resolve `resource-path` on the classpath to a runnable java.io.File.
+  Returns nil when the resource is absent. When the resource lives inside a
+  jar (the uberjar), copy it to a temp file and make it executable; when it's
+  already a file on disk (dev), return it directly."
+  [resource-path]
+  (when-let [url (io/resource resource-path)]
+    (case (.getProtocol url)
+      "file" (let [f (java.io.File. (.toURI url))]
+               (when (.isFile f) f))
+      "jar"  (let [tmp (java.io.File/createTempFile "era5-timeseries" nil)]
+               (.deleteOnExit tmp)
+               (with-open [in  (io/input-stream url)
+                           out (io/output-stream tmp)]
+                 (io/copy in out))
+               (.setExecutable tmp true)
+               tmp)
+      nil)))
+
+(defn- fetcher-path
+  "Locate the era5-timeseries binary, in order:
+   1. $ERA5_FETCHER — explicit override for unusual deployments
+   2. bin/era5-timeseries on the classpath — the bundled release binary
+   3. src/rs/era5-timeseries/target/release/era5-timeseries — dev build"
+  []
+  (or (System/getenv "ERA5_FETCHER")
+      (some-> (extract-binary! "bin/era5-timeseries") .getPath)
+      (let [f (io/file "src/rs/era5-timeseries/target/release/era5-timeseries")]
+        (when (.isFile f) (.getPath f)))))
+
 (defn- era-download-cmd [varname row col]
-  ["src/py/era5-timeseries.py"
-   "--row" (str row)
-   "--col" (str col)
-   "--var" (str varname)])
+  (let [bin (or (fetcher-path)
+                (throw (ex-info (str "era5-timeseries binary not found. "
+                                     "Build it with `make release-era5-timeseries`, "
+                                     "or point $ERA5_FETCHER at a prebuilt binary.")
+                                {})))]
+    [bin (str row) (str col) (str varname)]))
 
 (defn- fix-valid-time [data]
   ;; tmd's parquet reader only honors the legacy TIMESTAMP_MILLIS/MICROS
@@ -27,20 +59,19 @@
                             (dtype/emap (fn [^long ns] (quot ns 1000)) :int64 col)))))
 
 (defn expected-path [varname row col]
-  ;; Must match what the python script says!
-  ;; path = f"era_ts/{row}/{col}/{var}.parquet"
+  ;; Must match what the fetcher writes (both the Rust binary and the legacy
+  ;; Python script emit era_ts/{row}/{col}/{var}.parquet).
   (str "era_ts/" row "/" col "/" varname ".parquet"))
 
 (defn- run-cmd
-  "Run `cmd` (vector of strings) synchronously, returning a map with
-  :out, :err and :exit to match the return value of `clojure.java.shell/sh`"
+  "Run `cmd` (vector of strings) synchronously, capturing stdout and stderr
+  separately. Returns {:out :err :exit} like clojure.java.shell/sh."
   [cmd]
-  (let [proc (.start (doto (ProcessBuilder. ^java.util.List cmd)
-                       (.redirectErrorStream true)))]
-    {:out  (with-open [r (io/reader (.getInputStream proc))]
-             (slurp r))
-     :err  ""
-     :exit (.waitFor proc)}))
+  (let [proc (.start (ProcessBuilder. ^java.util.List cmd))
+        out  (with-open [r (io/reader (.getInputStream proc))] (slurp r))
+        err  (with-open [r (io/reader (.getErrorStream proc))] (slurp r))
+        exit (.waitFor proc)]
+    {:out out :err err :exit exit}))
 
 (defn fetch-ts
   "Fetch timeseries ERA5 data for the given pixel."
@@ -48,19 +79,17 @@
   (let [parquet-path (expected-path varname row col)
         exists?      (.exists (io/file parquet-path))]
     (when-not exists?
-      ;; Query from the Icechunk repository on s3 -> permanent storage (TBD)
-      ;; using a python script because there are no JVM options
-      ;; effectively, this acts as an ever-growing cache in storage.
-      ;; hopefully bound by the fact that callers won't try anything stupid.
-      ;; like downloading all rows x cols x vars timeseries ... 100+ TB easy
-      (let [{:keys [out exit]} (run-cmd (era-download-cmd varname row col))]
+      ;; Query the Icechunk repository on S3 and cache to permanent storage
+      ;; via the Rust era5-timeseries binary (see src/rs/era5-timeseries).
+      ;; This acts as an ever-growing cache, hopefully bound by the fact that
+      ;; callers won't try anything stupid (all rows x cols x vars = 100+ TB).
+      (let [cmd                    (era-download-cmd varname row col)
+            {:keys [out err exit]} (run-cmd cmd)]
+        (when (seq err) (binding [*out* *err*] (print err)))
         (when-not (zero? exit)
-          (throw (ex-info "Command failed"
-                          {:exit exit
-                           :out  out
-                           :cmd  (era-download-cmd varname row col)})))
+          (throw (ex-info "Command failed" {:exit exit :out out :err err :cmd cmd})))
         (assert (= (str/trim out) parquet-path))))
-    ;; fetch from permanent storage and return a clean dataset
+    ;; read from permanent storage and return a clean dataset
     (->
      (pq/parquet->ds parquet-path)
      (fix-valid-time))))

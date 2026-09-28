@@ -20,11 +20,23 @@ release-client:
 release-server:
 	clojure -T:build uberjar
 
+# Rust icechunk download script integration:
+# Why? There is no JVM alternative. It's Rust or Python. And we chose Rust.
+# The era5-timeseries binary is built once in release mode and bundled into the uberjar.
+# (see src/clj/climate_changed/era5/fetch.clj for how it's discovered at runtime).
+# Warning: This makes the jar platform-specific!
+
+release-era5-timeseries:
+	cd src/rs/era5-timeseries && cargo build --release
+	install -D -m 755 src/rs/era5-timeseries/target/release/era5-timeseries resources/bin/era5-timeseries
+
 clean:
 	rm -rf ./target
 	rm -rf ./resources/public/js/
+	rm -rf ./resources/bin/
+	rm -rf ./src/rs/era5-timeseries/target/
 
-release: clean release-client release-server
+release: clean release-client release-era5-timeseries release-server
 
 test-clj:
 	clojure -X:test
@@ -41,6 +53,6 @@ db-down:
 	cd infra/ && docker compose down
 
 era:
-	./src/py/era5-timeseries.py
+	./resources/bin/era5-timeseries 198 1020 t2m
 
 

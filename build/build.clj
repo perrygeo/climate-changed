@@ -6,8 +6,9 @@
 (def class-dir "target/classes")
 
 (defn uberjar
-  "Build an uberjar that includes the production CLJS build output.
-  Run `make release-client` first to produce resources/public/js/main.js."
+  "Build an uberjar that includes the production CLJS build output and the
+  bundled Rust era5-timeseries binary. Run `make release-client` and
+  `make release-era5-timeseries` first (or `make release` for everything)."
   [_]
   (println "\n=== Building climate-changed uberjar ===\n")
 
@@ -19,6 +20,12 @@
       (when-not (.exists (java.io.File. client-js))
         (println "WARNING:" client-js "not found.")
         (println "Run 'make release-client' first to build client assets.")))
+
+    ;; Check that the bundled Rust fetcher binary exists
+    (let [fetcher-bin "resources/bin/era5-timeseries"]
+      (when-not (.exists (java.io.File. fetcher-bin))
+        (println "WARNING:" fetcher-bin "not found.")
+        (println "Run 'make release-era5-timeseries' first to bundle the Rust binary.")))
 
     ;; Clean target directory
     (b/delete {:path "target"})

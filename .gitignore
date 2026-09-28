@@ -37,3 +37,5 @@ era_ts/
 
 # Rust
 src/rs/**/target/
+# Bundled release binary (build artifact, platform-specific)
+resources/bin/

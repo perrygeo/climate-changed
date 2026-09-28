@@ -14,6 +14,15 @@ INSERT INTO locations (name, geom)
     VALUES ('San Francisco', ST_SetSRID (ST_Point (-122.4194, 37.7749), 4326));
 
 INSERT INTO locations (name, geom)
+VALUES
+    ('Denver', ST_SetSRID (ST_Point (-104.9903, 39.7392), 4326)),
+    ('Chicago', ST_SetSRID (ST_Point (-87.6298, 41.8781), 4326)),
+    ('Atlanta', ST_SetSRID (ST_Point (-84.3880, 33.7490), 4326)),
+    ('Paris', ST_SetSRID (ST_Point (2.3522, 48.8566), 4326)),
+    ('Berlin', ST_SetSRID (ST_Point (13.4050, 52.5200), 4326)),
+    ('Tehran', ST_SetSRID (ST_Point (51.3890, 35.6892), 4326));
+
+INSERT INTO locations (name, geom)
     VALUES ('Mexico City', ST_SetSRID (ST_Point (-99.1332, 19.4326), 4326));
 
 INSERT INTO locations (name, geom)

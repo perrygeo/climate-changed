@@ -70,16 +70,17 @@
   ;; REPL mgmt
   ;; 1. Start a *second* REPL
   ;; using NeoVim and Conjure - <leader>sc
-  ;; 
+  ;;
   ;; 2. Activate the clojurescript repl
   ;; using NeoVim and Conjure - :ConjureShadowSelect app - or
   (shadow/nrepl-select :app)
   (+ 1 1) ;; if No available JS runtime, see "important" above
+  (js/alert "Hello from the REPL") ;; cljs only
   :cljs/quit
   ;;
   ;; 3. Switch sessions to get back and forth between clj and cljs
   ;; using NeoVim and Conjure - <leader>ss
-  ;; 
+  ;;
   ;; After editing deps.edn, call:
   (require 'clojure.repl.deps)
   (clojure.repl.deps/sync-deps) ; reads deps.edn and hot-loads any new/changed deps

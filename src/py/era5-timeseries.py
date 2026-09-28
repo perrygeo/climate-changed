@@ -10,9 +10,16 @@
 # ]
 # ///
 
+# The icechunk -> parquet conversion can be done in pure Rust (no xarray):
+# see src/rs/era5-timeseries/ for a verified Rust implementation.
+
+# Smoke test (2026-09-28, t2m @ row 198 col 1020, 3 warmed runs each):
+#   rust (release) ~9.5–10.1 s vs python (uv + xarray) ~11.2–13.3 s wall-clock.
+#   Rust is ~18% faster; both are dominated by S3 reads + pcodec decode, and
+#   Rust also reconstructs valid_time arithmetically instead of reading it.
+
 import argparse
 import os
-import sys
 
 import icechunk
 import numpy as np

@@ -3,8 +3,7 @@
   (:require
    [cartoj.core :as cartoj]
    [cartoj.interop :as interop]
-   [climate-changed.frontend.state :as state]
-   [reagent.core :as r]))
+   [climate-changed.frontend.state :as state]))
 
 (def light-style "/styles/light.json")
 
@@ -25,7 +24,7 @@
 (defn- fly-to-location!
   "Fly the map to `loc` with the same animation used for typeahead selection."
   [loc]
-  (when-let [^js m (:map-ref @state/state)]
+  (when-let [^js m @state/map-ref]
     (.flyTo m (clj->js {:center   (coords-to-maplibre (offset-coords loc 1.2))
                         :zoom     7.5
                         :duration 12000}))))
@@ -64,13 +63,13 @@
   (.on m "mouseleave" locations-hitbox-layer-id (fn [_] (set-map-cursor! m ""))))
 
 (defonce locations-layer-events-watch
-  ;; Once the maplibre Map is available in :map-ref, attach the layer events.
-  ;; TODO what are the performance implications of this? should map-ref be its own separate atom?
-  (add-watch state/state :locations-layer-events
+  ;; Once the maplibre Map is available in `state/map-ref`, attach the layer
+  ;; events. Watching a dedicated atom means unrelated state swaps never fire
+  ;; this watch.
+  (add-watch state/map-ref :locations-layer-events
              (fn [_ _ old new]
-               (when-let [m (:map-ref new)]
-                 (when (not (identical? m (:map-ref old)))
-                   (register-layer-events! m))))))
+               (when (and new (not (identical? old new)))
+                 (register-layer-events! new)))))
 
 (comment
   locations-layer-events-watch)
@@ -84,7 +83,7 @@
                            :projection         "globe"
                            :style-diffing      false
                            :map-style          (:map-style @state/state)}
-   [interop/reset-map-ref! (r/cursor state/state [:map-ref])]
+   [interop/reset-map-ref! state/map-ref]
    [cartoj/source {:id   "locations"
                    :type "geojson"
                    :data "api/locations"}
@@ -92,9 +91,9 @@
                    :type   "circle"
                    :source "locations"
                    :paint  {:circle-radius       5
-                            :circle-color        "#bbf2"
-                            :circle-stroke-width 3
-                            :circle-stroke-color "#bbf5"}}]
+                            :circle-color        "#fffa"
+                            :circle-stroke-width 2
+                            :circle-stroke-color "#bbf9"}}]
     [cartoj/layer {:id     locations-hitbox-layer-id
                    :type   "circle"
                    :source "locations"
@@ -102,7 +101,7 @@
                             :circle-opacity 0}}]]])
 
 (defn set-globe! []
-  (when-let [^js m (:map-ref @state/state)]
+  (when-let [^js m @state/map-ref]
     (.setProjection m (clj->js {:type "globe"}))))
 
 (defn watch-color-scheme!
