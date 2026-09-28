@@ -1,5 +1,5 @@
 (ns climate-changed.frontend.interactive-map
-  "Interactive map interaction and styling"
+  "Interactive map interaction and styling. Primarily using Maplibre API via cartoj."
   (:require
    [cartoj.core :as cartoj]
    [cartoj.interop :as interop]
@@ -53,7 +53,7 @@
   (let [^js canvas (.getCanvas m)]
     (set! (.-cursor (.-style canvas)) cursor)))
 
-(defn register-layer-events!
+(defn- register-layer-events!
   "Register maplibre event listeners for the locations hitbox layer on `m`:
   click selects a location; mouseenter/leave toggle a pointer cursor. The
   hitbox layer is invisible but larger than the visible circle, giving a
@@ -63,14 +63,17 @@
   (.on m "mouseenter" locations-hitbox-layer-id (fn [_] (set-map-cursor! m "pointer")))
   (.on m "mouseleave" locations-hitbox-layer-id (fn [_] (set-map-cursor! m ""))))
 
-#_{:clojure-lsp/ignore [:clojure-lsp/unused-public-var]}
-(defonce _locations-layer-events-watch
+(defonce locations-layer-events-watch
   ;; Once the maplibre Map is available in :map-ref, attach the layer events.
+  ;; TODO what are the performance implications of this? should map-ref be its own separate atom?
   (add-watch state/state :locations-layer-events
              (fn [_ _ old new]
-               (let [m (:map-ref new)]
-                 (when (and m (not (identical? m (:map-ref old))))
+               (when-let [m (:map-ref new)]
+                 (when (not (identical? m (:map-ref old)))
                    (register-layer-events! m))))))
+
+(comment
+  locations-layer-events-watch)
 
 (defn locations-map
   "Render the interactive globe map with the locations GeoJSON source, a
