@@ -6,7 +6,6 @@
    [climate-changed.common :as shared]
    [climate-changed.era5.grid :as grid]
    [climate-changed.era5.variables :as vars]
-   [climate-changed.frontend.interactive-map :as imap]
    [climate-changed.frontend.search :as search]
    [climate-changed.frontend.state :as state]
    [reagent.core :as r]))
@@ -136,18 +135,17 @@
       (when error   [:p {:class "error"} error])]
      [cartoj/interactive-map
       {:initial-view-state {:longitude 0 :latitude 16 :zoom 2.5}
-       :on-click           imap/click-handler
        :projection         "globe"
        :style-diffing      false
        :map-style          (:map-style @state/state)}
       [interop/reset-map-ref! (r/cursor state/state [:map-ref])]
-      [cartoj/source {:id   "cities"
+      [cartoj/source {:id   "locations"
                       :type "geojson"
                       :data "api/locations"}
-       [cartoj/layer {:id     "cities-circles"
+       [cartoj/layer {:id     "locations-layer"
                       :type   "circle"
-                      :source "cities"
-                      :paint  {:circle-radius       4
-                               :circle-color        "#ffb"
+                      :source "locations"
+                      :paint  {:circle-radius       6
+                               :circle-color        "#ffba"
                                :circle-stroke-width 1
                                :circle-stroke-color "#a99"}}]]]]))
