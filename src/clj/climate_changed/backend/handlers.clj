@@ -54,6 +54,8 @@
   (some #(when (= (:col-name %) col-name) %)
         (ds/rows (ds/descriptive-stats data))))
 
+(def default-varname "t2m")
+
 (defn era5-summary-handler
   "ERA5 climate summary for a grid cell. Reads :row and :col from the
   request's :route-params, fetches the hourly timeseries for the default
@@ -62,10 +64,10 @@
   (let [row (->long (:row route-params))
         col (->long (:col route-params))]
     (if (and row col)
-      (let [varname "t2m"
-            data    (fetch/fetch-ts varname row col)
-            vstats  (descriptive-stats-row data varname)
-            tstats  (descriptive-stats-row data "valid_time")
+      (let [varname           default-varname
+            data              (fetch/fetch-ts varname row col)
+            vstats            (descriptive-stats-row data varname)
+            tstats            (descriptive-stats-row data "valid_time")
             {:keys [lat lon]} (grid/cell-center row col)]
         {:status  200
          :headers {"Content-Type" "application/json"}
