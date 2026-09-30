@@ -1,9 +1,12 @@
 (ns climate-changed.backend.handlers
   (:require
    [cheshire.core :as json]
+   [clojure.java.io :as io]
    [climate-changed.common :as s]
    [climate-changed.era5.summary :as summary]
-   [climate-changed.models.locations :as db]
+   ;; kept for the commented-out DB-backed :body below (dev switch)
+   #_{:clj-kondo/ignore [:unused-namespace]}
+   [climate-changed.models.locations :as loc]
    [ring.middleware.resource :refer [wrap-resource]]
    [ring.util.response :as resp]))
 
@@ -15,13 +18,20 @@
    :body    "\"ok\""})
 
 (defn locations-handler
-  "GeoJSON endpoint: every location in the database, serialised to
-  RFC 7946 text. The datasource is captured at system init."
+  "GeoJSON endpoint: every location, serialised to RFC 7946 text.
+  The datasource is captured at system init and retained so the DB-backed
+  variant below can be re-enabled during dev."
+  ;; retained for the commented-out DB-backed :body below (dev switch)
+  #_{:clj-kondo/ignore [:unused-binding]}
   [ds]
   (fn [_req]
     {:status  200
      :headers {"Content-Type" "application/geo+json"}
-     :body    (json/generate-string (db/locations-feature-collection ds))}))
+     ;; Natural Earth populated places, served straight from resources.
+     :body    (slurp (io/resource "ne_50m_populated_places_simple.geojson"))
+     ;; DB-backed locations — flip between these two `:body` forms in dev:
+     ;; :body    (json/generate-string (loc/locations-feature-collection ds))
+     }))
 
 (defn hello-handler
   "Demo API endpoint."
