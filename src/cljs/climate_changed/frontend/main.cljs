@@ -28,7 +28,9 @@
   (inject-styles!)
   (.render ^js @root (r/as-element [app/app])))
 
-(defn init []
+(defn init
+  "Runs on application startup and every browser refresh."
+  []
   (reset! root (rdom/create-root (js/document.getElementById "app")))
   (imap/watch-color-scheme!)
   (re-render)
