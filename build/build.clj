@@ -5,6 +5,13 @@
 (def version (or (System/getenv "VERSION") "0.1.0-SNAPSHOT"))
 (def class-dir "target/classes")
 
+(defn- build-stamp
+  "Compact UTC build timestamp, e.g. 20240607T1530Z, used to make each
+  uberjar filename unique so deploys can be tracked and rolled back."
+  []
+  (.format (java.time.format.DateTimeFormatter/ofPattern "yyyyMMdd'T'HHmm'Z'")
+           (java.time.ZonedDateTime/now java.time.ZoneOffset/UTC)))
+
 (defn uberjar
   "Build an uberjar that includes the production CLJS build output and the
   bundled Rust era5-timeseries binary. Run `make release-client` and
@@ -12,8 +19,8 @@
   [_]
   (println "\n=== Building climate-changed uberjar ===\n")
 
-  (let [basis      (b/create-basis {:aliases [:build]})
-        uber-file  (format "target/climate-changed-%s-standalone.jar" version)]
+  (let [basis     (b/create-basis {:aliases [:build]})
+        uber-file (format "target/climate-changed-%s-%s.jar" version (build-stamp))]
 
     ;; Check that client build exists
     (let [client-js "resources/public/js/main.js"]

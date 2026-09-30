@@ -88,4 +88,5 @@ To verify, SSH into the ec2, run something on port 9000
 (e.g. `nix-shell -p python3 --run 'python3 -m http.server 9000'`), and see the
 results at `climate-changed.org`
 
-
+### Systemd
+The files live in `/var/lib/climate-changed/` on the live server.

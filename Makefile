@@ -1,4 +1,4 @@
-.PHONY: default dev clean release release-client release-server test test-clj test-cljs
+.PHONY: default dev clean release release-client release-server test test-clj test-cljs deploy
 
 default:
 	@echo "Usage:"
@@ -41,7 +41,7 @@ clean:
 	rm -rf ./resources/bin/
 	rm -rf ./src/rs/era5-timeseries/target/
 
-release: clean release-client release-era5-timeseries release-server
+release: release-client release-era5-timeseries release-server
 
 test-clj:
 	clojure -X:test
@@ -54,4 +54,29 @@ test: test-clj test-cljs
 era:
 	./resources/bin/era5-timeseries 198 1020 t2m
 
+PROD_IP := 52.204.129.175
+PROD_USER := root
+PROD_DIR := /var/lib/climate-changed
+SSH := ssh -o StrictHostKeyChecking=accept-new $(PROD_USER)@$(PROD_IP)
 
+# Manual deployment (no nix packaging yet):
+#   1) pick the newest timestamped uberjar in target/ and scp it to the box
+#   2) repoint the `production.jar` symlink the systemd unit runs
+#   3) restart the service so it picks up the new jar
+# Assumes an ssh key/cert for $(PROD_USER)@$(PROD_IP) is already configured and
+# that the climate-changed systemd unit exists (see infra/nixos/configuration.nix).
+deploy:
+	@JAR=$$(ls -t target/climate-changed-*.jar 2>/dev/null | head -n1); \
+	if [ -z "$$JAR" ]; then \
+		echo "No uberjar found in target/. Run 'make release' first." >&2; \
+		exit 1; \
+	fi; \
+	BASENAME=$$(basename "$$JAR"); \
+	echo "Deploying $$BASENAME to $(PROD_USER)@$(PROD_IP):$(PROD_DIR) ..."; \
+	$(SSH) "mkdir -p $(PROD_DIR)"; \
+	scp -o StrictHostKeyChecking=accept-new "$$JAR" "$(PROD_USER)@$(PROD_IP):$(PROD_DIR)/$$BASENAME"; \
+	$(SSH) "ln -sfn $(PROD_DIR)/$$BASENAME $(PROD_DIR)/production.jar && systemctl restart climate-changed && systemctl --no-pager status climate-changed | head -n5"; \
+	echo "Deployed $$BASENAME and restarted climate-changed."
+
+infra:
+	eval "$$(aws configure export-credentials --format env)" && cd infra/terraform && terraform apply
