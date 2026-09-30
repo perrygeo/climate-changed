@@ -23,11 +23,17 @@ release-server:
 # Why? There is no JVM alternative. It's Rust or Python. And we chose Rust.
 # The era5-timeseries binary is built once in release mode and bundled into the uberjar.
 # (see src/clj/climate_changed/era5/fetch.clj for how it's discovered at runtime).
-# Warning: This makes the jar platform-specific!
+# We cross-compile to musl so the binary is fully static. A glibc-linked build
+# embeds an absolute /nix/store/.../ld-linux interpreter path that only exists on
+# the machine that built it, so it dies with "No such file or directory" on other
+# NixOS hosts (see infra/README.md).
+
+MUSL_TARGET := x86_64-unknown-linux-musl
 
 release-era5-timeseries:
-	cd src/rs/era5-timeseries && cargo build --release
-	install -D -m 755 src/rs/era5-timeseries/target/release/era5-timeseries resources/bin/era5-timeseries
+	rustup target add $(MUSL_TARGET) && \
+	nix shell --extra-experimental-features 'nix-command flakes' 'nixpkgs#pkgsCross.musl64.stdenv.cc' 'nixpkgs#cmake' -c bash -lc 'set -euo pipefail; cd src/rs/era5-timeseries; export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-unknown-linux-musl-gcc CC_x86_64_unknown_linux_musl=x86_64-unknown-linux-musl-gcc CXX_x86_64_unknown_linux_musl=x86_64-unknown-linux-musl-g++ AR_x86_64_unknown_linux_musl=x86_64-unknown-linux-musl-ar; cargo build --release --target $(MUSL_TARGET)' && \
+	install -D -m 755 src/rs/era5-timeseries/target/$(MUSL_TARGET)/release/era5-timeseries resources/bin/era5-timeseries
 
 clean:
 	rm -rf ./target

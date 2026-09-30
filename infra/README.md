@@ -64,10 +64,10 @@ Verify end-to-end:
 ssh root@<instance_public_ip>
 
 # on the instance, serve something on the app port (fetch python3 on demand)
-nix-shell -p python3 --run 'python3 -m http.server 9000'
+nix-shell --extra-experimental-features flakes -p python3 --run 'python3 -m http.server 9000'
 ```
 
-Then open `https://<cloudfront_domain_name>/` in a browser — you should see the
+Then open `https://d6afen5o55kcs.cloudfront.net/` in a browser — you should see the
 directory listing served by the instance. (CloudFront redirects HTTP to HTTPS.)
 
 ## Rebuilding the NixOS configuration
@@ -132,7 +132,68 @@ CloudFront needs an ACM certificate (in `us-east-1`) for the custom domain.
      `<cloudfront_domain_name>`, or serve from `www.climate-changed.org` via a
      `CNAME` to `<cloudfront_domain_name>` and redirect the apex.
 
-4. Browse to `https://climate-changed.org/`.
+Here's how it looks on cloudflare
+
+```
+;;
+;; Domain:     climate-changed.org.
+;; Exported:   2026-09-30 21:14:32
+;;
+;; This file is intended for use for informational and archival
+;; purposes ONLY and MUST be edited before use on a production
+;; DNS server.  In particular, you must:
+;;   -- update the SOA record with the correct authoritative name server
+;;   -- update the SOA record with the contact e-mail address information
+;;   -- update the NS record(s) with the authoritative name servers for this domain.
+;;
+;; For further information, please consult the BIND documentation
+;; located on the following website:
+;;
+;; http://www.isc.org/
+;;
+;; And RFC 1035:
+;;
+;; http://www.ietf.org/rfc/rfc1035.txt
+;;
+;; Please note that we do NOT offer technical support for any use
+;; of this zone data, the BIND name server, or any other third-party
+;; DNS software.
+;;
+;; Use at your own risk.
+;; SOA Record
+climate-changed.org	3600	IN	SOA	justin.ns.cloudflare.com. dns.cloudflare.com. 2054246947 10000 2400 604800 3600
+
+;; NS Records
+climate-changed.org.	86400	IN	NS	justin.ns.cloudflare.com.
+climate-changed.org.	86400	IN	NS	mimi.ns.cloudflare.com.
+
+;; CNAME Records
+_08fa4616a889452f49bd90a34abed0d5.climate-changed.org.	1	IN	CNAME	_863c7b2352825c1264895f12ff99fc2b.wzccmgtwzk.acm-validations.aws. ; cf_tags=cf-proxied:false
+climate-changed.org.	1	IN	CNAME	d6afen5o55kcs.cloudfront.net. ; cf_tags=cf-proxied:false
+www.climate-changed.org.	1	IN	CNAME	d6afen5o55kcs.cloudfront.net. ; cf_tags=cf-proxied:false
+```
+
+1. Browse to `https://climate-changed.org/`.
+
+### Diagnosed: the bundled Rust binary wouldn't exec on the instance
+
+The first deploy 500'd on every ERA5 request with
+`java.io.IOException: Cannot run program "/tmp/era5-timeseries...tmp": Exec
+failed, error: 2 (No such file or directory)`.
+
+Root cause: **not** an `era_ts/` write problem — the binary never started. The
+bundled `era5-timeseries` was dynamically linked against the build machine's
+glibc, whose ELF interpreter is an absolute Nix store path
+(`/nix/store/...-glibc-.../lib/ld-linux-x86-64.so.2`). That path doesn't exist on
+the instance (different nixpkgs revision), so `execve` failed with ENOENT before
+any Rust code ran.
+
+Fix: `make release-era5-timeseries` now cross-compiles to a fully static musl
+binary (see the Makefile) — no interpreter dependency, runs on any Linux host.
+Rebuild the uberjar and redeploy.
+
+---
+
 
 ## Turning caching on later
 
