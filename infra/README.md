@@ -175,22 +175,9 @@ www.climate-changed.org.	1	IN	CNAME	d6afen5o55kcs.cloudfront.net. ; cf_tags=cf-p
 
 1. Browse to `https://climate-changed.org/`.
 
-### Diagnosed: the bundled Rust binary wouldn't exec on the instance
-
-The first deploy 500'd on every ERA5 request with
-`java.io.IOException: Cannot run program "/tmp/era5-timeseries...tmp": Exec
-failed, error: 2 (No such file or directory)`.
-
-Root cause: **not** an `era_ts/` write problem — the binary never started. The
-bundled `era5-timeseries` was dynamically linked against the build machine's
-glibc, whose ELF interpreter is an absolute Nix store path
-(`/nix/store/...-glibc-.../lib/ld-linux-x86-64.so.2`). That path doesn't exist on
-the instance (different nixpkgs revision), so `execve` failed with ENOENT before
-any Rust code ran.
-
-Fix: `make release-era5-timeseries` now cross-compiles to a fully static musl
-binary (see the Makefile) — no interpreter dependency, runs on any Linux host.
-Rebuild the uberjar and redeploy.
+```
+nix-shell --extra-experimental-features flakes -p openjdk25_headless --run 'PORT=9000 java -jar climate-changed-0.1.0-SNAPSHOT-standalone.jar'
+```
 
 ---
 
