@@ -1,0 +1,9 @@
+# Local terraform state, plans, and secrets
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+terraform.tfvars
+*.auto.tfvars
