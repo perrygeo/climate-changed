@@ -53,7 +53,7 @@
 (defonce era5-summary-watch
   ;; Whenever the selected location changes, (re)load the ERA5 summary for
   ;; its snapped grid cell; clear it when the selection is cleared.
-  ;; TODO performance implications? can we bail earlier and do less work if selected-locations hasn't changed
+  ;; performance implications? can we bail earlier and do less work if selected-locations hasn't changed
   (add-watch state/state :era5-summary
              (fn [_ _ old new]
                (let [loc (:selected-location new)]
