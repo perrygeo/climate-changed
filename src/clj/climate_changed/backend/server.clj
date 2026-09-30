@@ -2,6 +2,7 @@
   (:require
    [bidi.ring :refer [make-handler]]
    [climate-changed.backend.handlers :as h]
+   [climate-changed.backend.middleware :refer [wrap-edn-response wrap-gzip-middleware]]
    [ring.middleware.content-type :refer [wrap-content-type]]
    [ring.middleware.not-modified :refer [wrap-not-modified]]
    [ring.middleware.params :refer [wrap-params]]))
@@ -25,20 +26,6 @@
       (or (route-handler request)
           (h/resources-handler request)))))
 
-(defn wrap-edn-response
-  "Middleware that serialises Clojure collection body to EDN
-  and sets the Content-Type header to application/edn.
-  Leaves string/stream bodies untouched."
-  [handler]
-  (fn [request]
-    (let [response (handler request)]
-      (if (and (coll? (:body response))
-               (not (string? (:body response))))
-        (-> response
-            (assoc :body (pr-str (:body response)))
-            (assoc-in [:headers "Content-Type"] "application/edn"))
-        response))))
-
 (defn app-handler
   "The ring middleware stack around the routes; `datasource` is handed to
   any handler that needs the database."
@@ -47,4 +34,5 @@
       wrap-edn-response
       wrap-params
       wrap-content-type
-      wrap-not-modified))
+      wrap-not-modified
+      wrap-gzip-middleware))

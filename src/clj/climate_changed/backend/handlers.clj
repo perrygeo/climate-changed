@@ -1,12 +1,11 @@
 (ns climate-changed.backend.handlers
   (:require
+   ;; kept for the commented-out DB-backed :body below (dev switch)
    [cheshire.core :as json]
-   [clojure.java.io :as io]
    [climate-changed.common :as s]
    [climate-changed.era5.summary :as summary]
-   ;; kept for the commented-out DB-backed :body below (dev switch)
-   #_{:clj-kondo/ignore [:unused-namespace]}
    [climate-changed.models.locations :as loc]
+   [clojure.java.io :as io]
    [ring.middleware.resource :refer [wrap-resource]]
    [ring.util.response :as resp]))
 
@@ -27,10 +26,10 @@
   (fn [_req]
     {:status  200
      :headers {"Content-Type" "application/geo+json"}
-     ;; Natural Earth populated places, served straight from resources.
      :body    (slurp (io/resource "ne_50m_populated_places_simple.geojson"))
-     ;; DB-backed locations — flip between these two `:body` forms in dev:
      ;; :body    (json/generate-string (loc/locations-feature-collection ds))
+     ;; after testing the geojson vs database-generated strategy, we've decided to use the geojson resource approach.
+     ;; please remove ALL references to postgres, sql, jdbc, connection pools, etc. BIG refactor but ultimately makes the application simpler and more robust.
      }))
 
 (defn hello-handler

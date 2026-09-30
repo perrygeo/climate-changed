@@ -75,7 +75,7 @@
   ;; using NeoVim and Conjure - :ConjureShadowSelect app - or
   (shadow/nrepl-select :app)
   (+ 1 1) ;; if No available JS runtime, see "important" above
-  (js/alert "Hello from the REPL") ;; cljs only
+  #_(js/alert "Hello from the REPL") ;; cljs only
   :cljs/quit
   ;;
   ;; 3. Switch sessions to get back and forth between clj and cljs
