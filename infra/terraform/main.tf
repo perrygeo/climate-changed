@@ -93,6 +93,27 @@ resource "aws_instance" "app" {
 }
 
 ########################################
+# Stable Elastic IP
+#
+# The auto-assigned public IP changes on every stop/start, which breaks SSH
+# and the CloudFront origin. An Elastic IP survives stop/start and reassociation
+# to a replacement instance, so we pin the instance to it.
+########################################
+
+resource "aws_eip" "app" {
+  domain = "vpc"
+
+  tags = {
+    Name = "climate-changed-app-eip"
+  }
+}
+
+resource "aws_eip_association" "app" {
+  instance_id   = aws_instance.app.id
+  allocation_id = aws_eip.app.id
+}
+
+########################################
 # Instance IAM role (S3 access)
 ########################################
 
@@ -114,7 +135,11 @@ resource "aws_iam_role" "app" {
 
 data "aws_iam_policy_document" "data_bucket_access" {
   statement {
-    actions   = ["s3:ListBucket"]
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+      "s3:ListBucketMultipartUploads",
+    ]
     resources = [aws_s3_bucket.data.arn]
   }
 
@@ -123,6 +148,8 @@ data "aws_iam_policy_document" "data_bucket_access" {
       "s3:GetObject",
       "s3:PutObject",
       "s3:DeleteObject",
+      "s3:AbortMultipartUpload",
+      "s3:ListMultipartUploadParts",
     ]
     resources = ["${aws_s3_bucket.data.arn}/*"]
   }

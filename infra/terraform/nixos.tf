@@ -11,7 +11,15 @@
 ########################################
 
 resource "terraform_data" "nixos_rebuild" {
-  depends_on = [aws_instance.app]
+  # The ZeroFS encryption password (and the permission to read it) must exist
+  # before the rebuild, otherwise the freshly-started zerofs-secret.service has
+  # nothing to fetch on first boot.
+  depends_on = [
+    aws_instance.app,
+    aws_eip_association.app,
+    aws_ssm_parameter.zerofs_password,
+    aws_iam_role_policy.ssm_get_parameter,
+  ]
 
   triggers_replace = {
     instance_id = aws_instance.app.id
@@ -27,14 +35,14 @@ resource "terraform_data" "nixos_rebuild" {
       key="${pathexpand(var.ssh_private_key_path)}"
       ssh_opts="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 -i $key"
       for i in $(seq 1 30); do
-        if ssh $ssh_opts root@${aws_instance.app.public_ip} true 2>/dev/null; then
+        if ssh $ssh_opts root@${aws_eip.app.public_ip} true 2>/dev/null; then
           NIX_SSHOPTS="$ssh_opts" \
             nixos-rebuild switch \
               --flake .#app \
-              --target-host root@${aws_instance.app.public_ip}
+              --target-host root@${aws_eip.app.public_ip}
           exit 0
         fi
-        echo "waiting for SSH on ${aws_instance.app.public_ip} ($i/30)..."
+        echo "waiting for SSH on ${aws_eip.app.public_ip} ($i/30)..."
         sleep 5
       done
       echo "instance did not become reachable over SSH" >&2

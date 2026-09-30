@@ -90,3 +90,31 @@ results at `climate-changed.org`
 
 ### Systemd
 The files live in `/var/lib/climate-changed/` on the live server.
+
+### era_ts storage (S3-backed)
+
+The ERA5 timeseries parquet cache lives at
+`/var/lib/climate-changed/era_ts`. It used to sit on the EC2 root volume,
+which is small and destroyed when the instance is rebuilt. It is now backed by
+the S3 bucket `climate-changed-era5-timeseries-v1`:
+
+    S3 bucket --ZeroFS--> /dev/nbd0 (block device) --ZFS--> era_ts
+
+`infra/nixos/configuration.nix` wires this up with systemd units:
+
+- `zerofs.service` — runs [ZeroFS](https://www.zerofs.net/docs/), exposing the
+  bucket as a filesystem, an NBD export, and a loopback 9P endpoint.
+- `zerofs-secret.service` — fetches the ZeroFS encryption password from AWS SSM
+  Parameter Store (it must survive instance rebuilds).
+- `zerofs-export.service` — one-time bootstrap that creates the sparse
+  `.nbd/era_ts` export file.
+- `zerofs-nbd.service` — attaches the export as `/dev/nbd0` via `nbd-client`.
+- `zerofs-zfs.service` — imports (or first-time creates) the `era_ts_pool` ZFS
+  pool on `/dev/nbd0` and mounts it at `/var/lib/climate-changed/era_ts`.
+- `climate-changed.service` — starts only after the era_ts mount is up.
+
+The ZeroFS encryption password is a `SecureString` in SSM
+(`/climate-changed/zerofs/encryption-password`), created by Terraform
+(`infra/terraform/zerofs.tf`). To (re)create infrastructure, run
+`terraform init` (new `random` provider) then `terraform apply` before the
+NixOS rebuild, so the SSM parameter exists.

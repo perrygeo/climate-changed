@@ -1,4 +1,4 @@
-.PHONY: default dev clean release release-client release-server test test-clj test-cljs deploy
+.PHONY: default dev clean infra release release-client release-server test test-clj test-cljs deploy
 
 default:
 	@echo "Usage:"
@@ -54,7 +54,7 @@ test: test-clj test-cljs
 era:
 	./resources/bin/era5-timeseries 198 1020 t2m
 
-PROD_IP := 52.204.129.175
+PROD_IP := 98.89.137.144
 PROD_USER := root
 PROD_DIR := /var/lib/climate-changed
 SSH := ssh -o StrictHostKeyChecking=accept-new $(PROD_USER)@$(PROD_IP)

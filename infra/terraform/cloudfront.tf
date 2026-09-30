@@ -54,7 +54,7 @@ resource "aws_cloudfront_distribution" "app" {
 
   origin {
     origin_id   = local.origin_id
-    domain_name = aws_instance.app.public_dns
+    domain_name = aws_eip.app.public_dns
 
     custom_origin_config {
       http_port              = var.app_port

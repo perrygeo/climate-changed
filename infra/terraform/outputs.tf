@@ -1,16 +1,16 @@
 output "instance_public_ip" {
   description = "Public IP of the EC2 instance (use this to SSH in)."
-  value       = aws_instance.app.public_ip
+  value       = aws_eip.app.public_ip
 }
 
 output "instance_public_dns" {
   description = "Public DNS name of the EC2 instance."
-  value       = aws_instance.app.public_dns
+  value       = aws_eip.app.public_dns
 }
 
 output "ssh_command" {
   description = "Convenience SSH command (assumes the key added above)."
-  value       = "ssh root@${aws_instance.app.public_ip}"
+  value       = "ssh root@${aws_eip.app.public_ip}"
 }
 
 output "cloudfront_domain_name" {
