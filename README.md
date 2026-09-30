@@ -8,16 +8,13 @@ A fullstack application to analyze ERA5 weather data timeseries for select locat
 Key source directories
 
 ```
- build                                        ;; local postgres database
+ build                                        ;; uberjar build script
  dev                                          ;; utils for local development
- infra                                        ;; local postgres database
  resources                                    ;; static files shipped with release
  test                                         ;; unit/integration tests
  src/rs/era5-timeseries/                      ;; rust command line utility for fetching ERA5
- src/sql/migrations/                          ;; define the database schema
  src/clj/climate_changed/backend/             ;; web server
  src/clj/climate_changed/era5/                ;; core weather data actions
- src/clj/climate_changed/models/              ;; domain objects
  src/cljc/climate_changed/                    ;; shared utils, common math, clj/cljs agnostic
  src/cljs/climate_changed/frontend/           ;; interactive web map application
 ```
@@ -30,10 +27,8 @@ The server side is JVM Clojure.
 * integrant components
 * ring
 * jetty9
-* hikaricp database connection pooling
-* migratus migrations (SQL files in `src/sql/migrations/`)
-* honeysql queries (`models/locations.clj`)
-* `GET /api/locations` returns all locations as GeoJSON (RFC 7946)
+* `GET /api/locations` returns all locations as GeoJSON (RFC 7946), served
+  from a bundled Natural Earth resource
 
 The server namespaces split by concern:
 
@@ -71,5 +66,4 @@ Usage:
   make test      - run all tests (JVM and Node)
   make test-clj  - run Clojure tests on the JVM
   make test-cljs - run ClojureScript tests on Node
-  make db-up|down - manage local Postgres database
 ```

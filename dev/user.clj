@@ -4,7 +4,6 @@
    [clojure.string :as str]
    [integrant.core :as ig]
    [integrant.repl]
-   [integrant.repl.state :as state]
    [shadow.cljs.devtools.api :as shadow]
    [shadow.cljs.devtools.server])
   (:import
@@ -45,19 +44,12 @@
 ;;  Manage the system interactively
 ;; ==========================================================================
 (comment
-  (integrant.repl/go)
   (integrant.repl/halt)
   (integrant.repl/reset)
 
-  ;; Inspect the database connection pool from the current system
-  (:climate-changed/datasource state/system)
-
-  ;; ClojureScript Build process
-  (shadow/watch :app)
-
-  ;; important,
+  ;; Important
   ;; Open the app in the default browser to connect the repl
-  ;; otherwise must reload existing tabs
+  ;; otherwise, refresh existing tabs to re-connect
   (open-browser "http://localhost:8081")
 
   ;; current namespace info, hack

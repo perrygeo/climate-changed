@@ -9,28 +9,26 @@
 
 (set! *warn-on-reflection* true)
 
-(defn routes
-  "bidi routes; handlers that need the database close over the datasource."
-  [datasource]
+(def routes
+  "bidi routes."
   ["/" [["" #'h/index-handler]
         ["healthz" #'h/healthz-handler]
         ["api/hello" #'h/hello-handler]
         [["api/era5-summary/" :row "/" :col] #'h/era5-summary-handler]
-        ["api/locations" (h/locations-handler datasource)]]])
+        ["api/locations" #'h/locations-handler]]])
 
 (defn routes-or-resources
   "Try bidi routes first; fall through to static resource serving."
-  [datasource]
-  (let [route-handler (make-handler (routes datasource))]
+  []
+  (let [route-handler (make-handler routes)]
     (fn [request]
       (or (route-handler request)
           (h/resources-handler request)))))
 
 (defn app-handler
-  "The ring middleware stack around the routes; `datasource` is handed to
-  any handler that needs the database."
-  [datasource]
-  (-> (routes-or-resources datasource)
+  "The ring middleware stack around the routes."
+  []
+  (-> (routes-or-resources)
       wrap-edn-response
       wrap-params
       wrap-content-type
