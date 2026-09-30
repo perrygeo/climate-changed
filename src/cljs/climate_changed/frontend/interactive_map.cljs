@@ -74,32 +74,6 @@
 (comment
   locations-layer-events-watch)
 
-(defn locations-map
-  "Render the interactive globe map with the locations GeoJSON source, a
-  visible circle layer, and a larger invisible hitbox layer for easier
-  clicking/hovering."
-  []
-  [cartoj/interactive-map {:initial-view-state {:longitude 0 :latitude 16 :zoom 2.5}
-                           :projection         "globe"
-                           :style-diffing      false
-                           :map-style          (:map-style @state/state)}
-   [interop/reset-map-ref! state/map-ref]
-   [cartoj/source {:id   "locations"
-                   :type "geojson"
-                   :data "api/locations"}
-    [cartoj/layer {:id     locations-layer-id
-                   :type   "circle"
-                   :source "locations"
-                   :paint  {:circle-radius       5
-                            :circle-color        "#fffa"
-                            :circle-stroke-width 2
-                            :circle-stroke-color "#bbf9"}}]
-    [cartoj/layer {:id     locations-hitbox-layer-id
-                   :type   "circle"
-                   :source "locations"
-                   :paint  {:circle-radius  16
-                            :circle-opacity 0}}]]])
-
 (defn set-globe! []
   (when-let [^js m @state/map-ref]
     (.setProjection m (clj->js {:type "globe"}))))
@@ -113,3 +87,30 @@
                      (swap! state/state assoc :map-style (if (.-matches m) dark-style light-style)))]
     (set-style! mql)
     (.addEventListener mql "change" set-style!)))
+
+(defn locations-map
+  "Render the interactive globe map with the locations GeoJSON source"
+  []
+  [cartoj/interactive-map {:initial-view-state {:longitude 0 :latitude 16 :zoom 2.5}
+                           :projection         "globe"
+                           :style-diffing      false
+                           :map-style          (:map-style @state/state)}
+   [interop/reset-map-ref! state/map-ref]
+   [cartoj/source {:id   "locations"
+                   :type "geojson"
+                   :data "api/locations"}
+    [cartoj/layer {:id     locations-layer-id
+                   :type   "circle"
+                   :source "locations"
+                   ;; Scale point radius with zoom: ~2px at globe view, ~6px when flown in.
+                   :paint  {:circle-radius       ["interpolate" ["linear"] ["zoom"]
+                                                  2 2
+                                                  7.5 6]
+                            :circle-color        "#66f4"
+                            :circle-stroke-width 1
+                            :circle-stroke-color "#fff3"}}]
+    [cartoj/layer {:id     locations-hitbox-layer-id
+                   :type   "circle"
+                   :source "locations"
+                   :paint  {:circle-radius  16
+                            :circle-opacity 0}}]]])
