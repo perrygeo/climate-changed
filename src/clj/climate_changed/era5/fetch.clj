@@ -9,10 +9,9 @@
    [tech.v3.libs.parquet :as pq]))
 
 (defn- extract-binary!
-  "Resolve `resource-path` on the classpath to a runnable java.io.File.
-  Returns nil when the resource is absent. When the resource lives inside a
-  jar (the uberjar), copy it to a temp file and make it executable; when it's
-  already a file on disk (dev), return it directly."
+  "Resolve `resource-path` on the classpath to a runnable binary.
+   When the resource lives inside a jar (the uberjar),
+   copy it to a temp file and make it executable."
   [resource-path]
   (when-let [url (io/resource resource-path)]
     (case (.getProtocol url)
@@ -59,8 +58,7 @@
                             (dtype/emap (fn [^long ns] (quot ns 1000)) :int64 col)))))
 
 (defn expected-path [varname row col]
-  ;; Must match what the fetcher writes (both the Rust binary and the legacy
-  ;; Python script emit era_ts/{row}/{col}/{var}.parquet).
+  ;; Path must match exactly what the fetcher writes (see the Rust code).
   (str "era_ts/" row "/" col "/" varname ".parquet"))
 
 (defn- run-cmd
@@ -94,7 +92,7 @@
      (pq/parquet->ds parquet-path)
      (fix-valid-time))))
 
-(comment ;; integration test for fetch-ts
+(comment ;; interactive test of fetch-ts
   (time (let [{:keys [row col]} (grid/snap-coords -105.0844 40.5853)
               data              (fetch-ts "t2m" row col)]
           (->
