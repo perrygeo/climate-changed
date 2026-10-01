@@ -90,3 +90,8 @@ deploy:
 
 infra:
 	eval "$$(aws configure export-credentials --format env)" && cd infra/terraform && terraform apply
+
+update:
+	neil dep update
+	rm package-lock.json
+	npm update
