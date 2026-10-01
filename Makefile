@@ -1,4 +1,4 @@
-.PHONY: default dev clean infra release release-client release-server test test-clj test-cljs coverage doc deploy
+.PHONY: default dev clean infra release release-client release-server test test-clj test-cljs coverage doc check deploy
 
 default:
 	@echo "Usage, local development"
@@ -9,6 +9,7 @@ default:
 	@echo "  make test-cljs - run ClojureScript tests on Node"
 	@echo "  make coverage  - JVM test coverage report (HTML in target/coverage)"
 	@echo "  make doc       - API docs for all namespaces (HTML in target/docs)"
+	@echo "  make check     - static linters (clj-kondo + cljfmt)"
 	@echo "Usage, operations"
 	@echo "  make infra     - ensure AWS resources are configured"
 	@echo "  make release   - build the release uberjar"
@@ -96,3 +97,7 @@ update:
 	neil dep update
 	rm package-lock.json
 	npm update
+
+check:
+	clj-kondo --lint src test
+	cljfmt check src test
