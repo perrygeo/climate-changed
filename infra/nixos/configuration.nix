@@ -309,4 +309,11 @@ in
       ExecCondition = "${pkgs.coreutils}/bin/test -e /var/lib/climate-changed/production.jar";
     };
   };
+  # Enable flakes and the new nix CLI permanently so that `nixos-rebuild
+  # --flake`, `nix shell`, and `nix-shell` work without passing
+  # `--extra-experimental-features 'nix-command flakes'` on every invocation.
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
 }

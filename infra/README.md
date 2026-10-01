@@ -64,7 +64,8 @@ Verify end-to-end:
 ssh root@<instance_public_ip>
 
 # on the instance, serve something on the app port (fetch python3 on demand)
-nix-shell --extra-experimental-features flakes -p python3 --run 'python3 -m http.server 9000'
+# (flakes/nix-command are enabled in the NixOS config, so no extra flags needed)
+nix-shell -p python3 --run 'python3 -m http.server 9000'
 ```
 
 Then open `https://d6afen5o55kcs.cloudfront.net/` in a browser — you should see the
@@ -176,7 +177,7 @@ www.climate-changed.org.	1	IN	CNAME	d6afen5o55kcs.cloudfront.net. ; cf_tags=cf-p
 1. Browse to `https://climate-changed.org/`.
 
 ```
-nix-shell --extra-experimental-features flakes -p openjdk25_headless --run 'PORT=9000 java -jar climate-changed-0.1.0-SNAPSHOT-standalone.jar'
+nix-shell -p openjdk25_headless --run 'PORT=9000 java -jar climate-changed-0.1.0-SNAPSHOT-standalone.jar'
 ```
 
 ---
