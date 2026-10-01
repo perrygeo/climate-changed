@@ -98,3 +98,14 @@
                   lon (* col 0.25)]]
       (is (= (grid/snap-coords lon lat)
              {:row row, :col col, :lat lat, :lon lon})))))
+
+(deftest cell-bbox-test
+  (testing "bbox spans 0.25 degrees centred on the cell centre"
+    (is (= (grid/cell-bbox 198 1020)
+           [254.875 40.375 255.125 40.625])))
+  (testing "longitude uses the grid's 0..360 convention"
+    (is (= (grid/cell-bbox 360 720)
+           [179.875 -0.125 180.125 0.125])))
+  (testing "the north-pole row's bbox extends a half-cell above the pole"
+    (is (= (grid/cell-bbox 0 0)
+           [-0.125 89.875 0.125 90.125]))))

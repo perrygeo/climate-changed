@@ -1,10 +1,17 @@
 (ns climate-changed.backend.components
   (:require
+   [climate-changed.backend.location-index :as location-index]
    [climate-changed.backend.server :as server]
    [integrant.core :as ig]
    [ring.adapter.jetty9 :as jetty]))
 
 (set! *warn-on-reflection* true)
+
+(defmethod ig/init-key :climate-changed/location-index
+  [_ _opts]
+  (let [n (location-index/init!)]
+    (println "Built location spatial index of" n "places")
+    n))
 
 (defmethod ig/init-key :climate-changed/server
   [_ {:keys [handler port]}]

@@ -54,3 +54,15 @@
         step 0.25]
     {:lat (- lat0 (* row step))
      :lon (+ lon0 (* col step))}))
+
+(defn cell-bbox
+  "The bounding box of the ERA5 grid cell at [row col] as
+  [min-lon min-lat max-lon max-lat]. Cells are 0.25 x 0.25 degrees, centered
+  on `cell-center`, so each edge is 0.125 degrees from the center.
+
+  Longitude uses the grid's 0..360 convention (matching `cell-center` and
+  `snap-coords`), not the -180..180 convention of GeoJSON sources."
+  [row col]
+  (let [{:keys [lat lon]} (cell-center row col)
+        half 0.125]
+    [(- lon half) (- lat half) (+ lon half) (+ lat half)]))

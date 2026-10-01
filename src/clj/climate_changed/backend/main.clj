@@ -8,9 +8,10 @@
 (set! *warn-on-reflection* true)
 
 (def config
-  {:climate-changed/handler {}
-   :climate-changed/server  {:port    (Integer/parseInt (or (System/getenv "PORT") "8081"))
-                             :handler (ig/ref :climate-changed/handler)}})
+  {:climate-changed/location-index {}
+   :climate-changed/handler         {:location-index (ig/ref :climate-changed/location-index)}
+   :climate-changed/server          {:port    (Integer/parseInt (or (System/getenv "PORT") "8081"))
+                                     :handler (ig/ref :climate-changed/handler)}})
 
 (defn -main
   "Start the server and block the main thread."

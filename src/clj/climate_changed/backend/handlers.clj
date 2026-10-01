@@ -1,7 +1,9 @@
 (ns climate-changed.backend.handlers
   (:require
    [cheshire.core :as json]
+   [climate-changed.backend.location-index :as location-index]
    [climate-changed.common :as s]
+   [climate-changed.era5.grid :as grid]
    [climate-changed.era5.summary :as summary]
    [clojure.java.io :as io]
    [garden.core :as garden]
@@ -81,15 +83,24 @@
 
 (defn era5-summary-handler
   "ERA5 climate summary for a grid cell.
-  Default var for now, returns its descriptive statistics as JSON."
+  Default var for now, returns its descriptive statistics as JSON.
+
+  The cell's bounding box is validated against the location spatial index:
+  cells with no nearby locations are rejected with a 500 so arbitrary
+  row/col requests can't fill the ever-growing era_ts cache."
   [{:keys [route-params]}]
   (let [row (->long (:row route-params))
         col (->long (:col route-params))]
     (if (and row col)
-      (let [summary (summary/era5-summary default-varname row col)]
-        {:status  200
-         :headers {"Content-Type" "application/json"}
-         :body    (json/generate-string summary)})
+      (let [bbox (grid/cell-bbox row col)]
+        (if (seq (location-index/query bbox))
+          (let [summary (summary/era5-summary default-varname row col)]
+            {:status  200
+             :headers {"Content-Type" "application/json"}
+             :body    (json/generate-string summary)})
+          {:status  500
+           :headers {"Content-Type" "application/json"}
+           :body    (json/generate-string {:error "no locations in grid cell"})}))
       {:status  400
        :headers {"Content-Type" "application/json"}
        :body    (json/generate-string {:error "row and col must be integers"})})))
