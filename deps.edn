@@ -7,6 +7,7 @@
            info.sunng/ring-jetty9-adapter {:mvn/version "0.40.4"}
            integrant/integrant            {:mvn/version "1.0.1"}
            io.github.perrygeo/cartoj      {:mvn/version "0.3.0"}
+           markdown-clj/markdown-clj      {:mvn/version "1.12.10"}
            reagent/reagent                {:mvn/version "2.0.1"}
            ring/ring-core                 {:mvn/version "1.15.5"}
            techascent/tech.ml.dataset     {:mvn/version "8.026"}}

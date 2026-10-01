@@ -103,7 +103,7 @@
    [interop/reset-map-ref! state/map-ref]
    [cartoj/source {:id   "locations"
                    :type "geojson"
-                   :data "api/locations"}
+                   :data "/api/locations"}
     [cartoj/layer {:id     locations-layer-id
                    :type   "circle"
                    :source "locations"

@@ -11,7 +11,8 @@
 
 (def routes
   "bidi routes."
-  ["/" [["" #'h/index-handler]
+  ["/" [["" #'h/home-handler]
+        ["map" #'h/spa-handler]
         ["healthz" #'h/healthz-handler]
         ["api/hello" #'h/hello-handler]
         [["api/era5-summary/" :row "/" :col] #'h/era5-summary-handler]

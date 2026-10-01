@@ -4,6 +4,8 @@
    [climate-changed.common :as s]
    [climate-changed.era5.summary :as summary]
    [clojure.java.io :as io]
+   [garden.core :as garden]
+   [markdown.core :as md]
    [ring.middleware.resource :refer [wrap-resource]]
    [ring.util.response :as resp]))
 
@@ -27,11 +29,43 @@
   {:status 200
    :body   {:message (str "Hello from " s/appname "!")}})
 
-(defn index-handler
-  "serve the SPA entry point."
+(defn spa-handler
+  "Serve the map SPA entry point (index.html) at /map."
   [_req]
   (-> (resp/resource-response "index.html" {:root "public"})
       (resp/content-type "text/html")))
+
+(defn- compile-shared-styles
+  "Compile climate-changed.common/default-style to CSS. This is the same
+  stylesheet the SPA injects at runtime, so the home page and the app share
+  one source of styling truth."
+  []
+  (garden/css s/default-style))
+
+(defn home-handler
+  "Serve the hand-written markdown introduction at /, rendered into a full
+  HTML page that inlines the shared stylesheet. The SPA itself lives at /map."
+  [_req]
+  (let [body-html (-> (io/resource "content/home.md")
+                      (slurp)
+                      (md/md-to-html-string))]
+    {:status  200
+     :headers {"Content-Type" "text/html"}
+     :body    (str "<!DOCTYPE html>\n"
+                   "<html lang=\"en\">\n"
+                   "  <head>\n"
+                   "    <meta charset=\"UTF-8\" />\n"
+                   "    <title>" s/appname "</title>\n"
+                   "    <link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\" />\n"
+                   "    <style>" (compile-shared-styles) "</style>\n"
+                   "  </head>\n"
+                   "  <body class=\"home\">\n"
+                   "    <header class=\"app-header\"><h1 class=\"app-title\">" s/appname "</h1></header>\n"
+                   "    <main class=\"home-content\">\n"
+                   body-html
+                   "\n    </main>\n"
+                   "  </body>\n"
+                   "</html>\n")}))
 
 (def resources-handler
   "serve files from resources/public, 404 if not found."

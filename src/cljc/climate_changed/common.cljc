@@ -182,4 +182,27 @@
      :margin    0
      :height    "100vh"
      :width     "100vw"
-     :max-width "none"}]])
+     :max-width "none"}]
+   ;; Home page: server-rendered markdown introduction at / (SPA lives at /map).
+   ;; Shares this stylesheet; the body is scrollable here since there is no map.
+   ;; The fixed .app-header overlays the top of the viewport, so pad the body
+   ;; enough to keep .home-content clear of it.
+   [:body.home {:overflow    "auto"
+                :padding-top "6rem"}]
+   [".home-content"
+    {:max-width "48rem"
+     :margin    "0 auto 2rem auto"
+     :padding   "0 1.5rem"}]
+   [".home-content h1"
+    {:margin-top "0"}]
+   [".home-content a"
+    {:display         "inline-block"
+     :padding         "0.4rem 0.8rem"
+     :border          "1px solid var(--border-secondary)"
+     :border-radius   "6px"
+     :background      "var(--bg-secondary)"
+     :color           "var(--text-link)"
+     :text-decoration "none"
+     :font-size       "0.95rem"}]
+   [".home-content a:hover"
+    {:background "var(--bg-selected)"}]])
