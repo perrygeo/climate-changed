@@ -4,6 +4,7 @@
    [climate-changed.common :as common]
    [climate-changed.era5.grid :as grid]
    [climate-changed.era5.variables :as vars]
+   [climate-changed.frontend.charts :as charts]
    [climate-changed.frontend.interactive-map :as imap]
    [climate-changed.frontend.search :as search]
    [climate-changed.frontend.state :as state]
@@ -131,6 +132,7 @@
         [:p {:class "summary-title"}
          (str (get-in vars/era5-variables [(keyword (:var s)) :name] (:var s))
               ", lat: " (fmt-coord (:lat s)) "°, long: " (fmt-coord (:lon s)) "°")]
+        [charts/mean-temperature-chart (:periods s) (:units s)]
         [:table {:class "summary-table"}
          [:thead
           [:tr [:th "period"] [:th "mean"] [:th "min"] [:th "max"] [:th "obs"]]]
