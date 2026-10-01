@@ -4,7 +4,7 @@
 # The instance boots the official NixOS AMI and is then configured in place
 # with the flake in ../ (infra/). Changing any of the flake files below makes
 # Terraform replace this small terraform_data resource, which re-runs the
-# provisioner against the same EC2 instance — the instance itself is NOT
+# provisioner against the same EC2 instance - the instance itself is NOT
 # replaced. To force a rebuild without editing files, run:
 #
 #   terraform apply -replace='terraform_data.nixos_rebuild'

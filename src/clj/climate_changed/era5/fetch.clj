@@ -28,9 +28,9 @@
 
 (defn- fetcher-path
   "Locate the era5-timeseries binary, in order:
-   1. $ERA5_FETCHER — explicit override for unusual deployments
-   2. bin/era5-timeseries on the classpath — the bundled release binary
-   3. src/rs/era5-timeseries/target/release/era5-timeseries — dev build"
+   1. $ERA5_FETCHER - explicit override for unusual deployments
+   2. bin/era5-timeseries on the classpath - the bundled release binary
+   3. src/rs/era5-timeseries/target/release/era5-timeseries - dev build"
   []
   (or (System/getenv "ERA5_FETCHER")
       (some-> (extract-binary! "bin/era5-timeseries") .getPath)

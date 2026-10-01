@@ -21,7 +21,7 @@ and reach through CloudFront.
 - AWS credentials in your environment (`aws configure` / `AWS_PROFILE` / env vars)
 - An SSH public key, plus the matching private key locally
 
-## Step 1 — First apply (get a working CloudFront URL)
+## Step 1 - First apply (get a working CloudFront URL)
 
 ```bash
 cd infra/terraform
@@ -39,9 +39,9 @@ terraform apply
 
 Terraform prints outputs including:
 
-- `ssh_command` — SSH into the instance.
-- `cloudfront_domain_name` — e.g. `d1234abcd.cloudfront.net`.
-- `data_bucket` — the timeseries S3 bucket.
+- `ssh_command` - SSH into the instance.
+- `cloudfront_domain_name` - e.g. `d1234abcd.cloudfront.net`.
+- `data_bucket` - the timeseries S3 bucket.
 
 On Sep 30, first run:
 ```
@@ -68,7 +68,7 @@ ssh root@<instance_public_ip>
 nix-shell -p python3 --run 'python3 -m http.server 9000'
 ```
 
-Then open `https://d6afen5o55kcs.cloudfront.net/` in a browser — you should see the
+Then open `https://d6afen5o55kcs.cloudfront.net/` in a browser - you should see the
 directory listing served by the instance. (CloudFront redirects HTTP to HTTPS.)
 
 ## Rebuilding the NixOS configuration
@@ -96,7 +96,7 @@ To apply configuration changes:
     nixos-rebuild switch --flake .#app --target-host root@<instance_public_ip>
   ```
 
-## Step 2 — Attach climate-changed.org
+## Step 2 - Attach climate-changed.org
 
 CloudFront needs an ACM certificate (in `us-east-1`) for the custom domain.
 
@@ -115,10 +115,10 @@ CloudFront needs an ACM certificate (in `us-east-1`) for the custom domain.
    The apply will **pause** waiting for certificate validation and print the
    required DNS record(s) in the `acm_validation_records` output. (If it blocks,
    run `terraform apply` in one terminal and read the record from
-   `terraform output acm_validation_records` — or run apply, note the record
+   `terraform output acm_validation_records` - or run apply, note the record
    from the plan, add it, and re-apply.)
 
-2. **Manually add the ACM validation record** at your DNS provider — a `CNAME`
+2. **Manually add the ACM validation record** at your DNS provider - a `CNAME`
    with the `name` and `value` from `acm_validation_records`. Once it
    propagates, AWS validates the cert and `terraform apply` completes.
 

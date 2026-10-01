@@ -1,15 +1,10 @@
 //! Read a single ERA5 grid-cell timeseries from the public Earthmover
-//! icechunk repository and write it to parquet — in pure Rust, with no
-//! Python or xarray in the middle.
+//! icechunk repository and write it to parquet.
 //!
-//! This is the Rust counterpart to `src/py/era5-timeseries.py`. It answers
-//! the question: can the icechunk -> parquet conversion be done without
-//! Python? Yes:
-//!
-//!   icechunk (Rust)        — opens the S3 repo + readonly session
-//!   zarrs_icechunk         — exposes the session as a zarrs async store
-//!   zarrs (pcodec codec)   — decodes the `numcodecs.pcodec` zarr v3 chunks
-//!   arrow / parquet        — writes the `valid_time` + `<var>` columns
+//!   icechunk (Rust)        - opens the S3 repo + readonly session
+//!   zarrs_icechunk         - exposes the session as a zarrs async store
+//!   zarrs (pcodec codec)   - decodes the `numcodecs.pcodec` zarr v3 chunks
+//!   arrow / parquet        - writes the `valid_time` + `<var>` columns
 //!
 //! The ERA5 grid is assumed to be the 0.25-deg global grid:
 //!   latitude:  721 points,  90.0 .. -90.0 (row 0 = north pole)

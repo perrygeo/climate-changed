@@ -188,7 +188,7 @@ in
   # ExecStop disconnects /dev/nbd0 on shutdown so systemd-shutdown doesn't try
   # to sync a dead NBD backend after zerofs (the S3 server) is gone.
   # zerofs-zfs.service is PartOf this unit, so the ZFS pool is exported before
-  # the device is disconnected — safe even on a partial restart.
+  # the device is disconnected - safe even on a partial restart.
   systemd.services.zerofs-nbd = {
     description = "Attach ZeroFS NBD export as /dev/nbd0";
     wantedBy = [ "multi-user.target" ];

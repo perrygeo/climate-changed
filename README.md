@@ -76,7 +76,7 @@ AWS infrastructure is defined with Terraform in [`infra/terraform/`](infra/terra
 
 * EC2 `t3.small` running NixOS (configured by the flake in `infra/flake.nix`),
   SSH-able as `root`, with an instance profile for S3
-* CloudFront distribution pointing at the EC2 instance on port 9000 — caching is
+* CloudFront distribution pointing at the EC2 instance on port 9000 - caching is
   disabled for now but structured to be turned on once the app is stable
 * S3 bucket to hold the timeseries data
 
@@ -102,16 +102,16 @@ the S3 bucket `climate-changed-era5-timeseries-v1`:
 
 `infra/nixos/configuration.nix` wires this up with systemd units:
 
-- `zerofs.service` — runs [ZeroFS](https://www.zerofs.net/docs/), exposing the
+- `zerofs.service` - runs [ZeroFS](https://www.zerofs.net/docs/), exposing the
   bucket as a filesystem, an NBD export, and a loopback 9P endpoint.
-- `zerofs-secret.service` — fetches the ZeroFS encryption password from AWS SSM
+- `zerofs-secret.service` - fetches the ZeroFS encryption password from AWS SSM
   Parameter Store (it must survive instance rebuilds).
-- `zerofs-export.service` — one-time bootstrap that creates the sparse
+- `zerofs-export.service` - one-time bootstrap that creates the sparse
   `.nbd/era_ts` export file.
-- `zerofs-nbd.service` — attaches the export as `/dev/nbd0` via `nbd-client`.
-- `zerofs-zfs.service` — imports (or first-time creates) the `era_ts_pool` ZFS
+- `zerofs-nbd.service` - attaches the export as `/dev/nbd0` via `nbd-client`.
+- `zerofs-zfs.service` - imports (or first-time creates) the `era_ts_pool` ZFS
   pool on `/dev/nbd0` and mounts it at `/var/lib/climate-changed/era_ts`.
-- `climate-changed.service` — starts only after the era_ts mount is up.
+- `climate-changed.service` - starts only after the era_ts mount is up.
 
 The ZeroFS encryption password is a `SecureString` in SSM
 (`/climate-changed/zerofs/encryption-password`), created by Terraform
