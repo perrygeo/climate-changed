@@ -104,3 +104,16 @@
       {:status  400
        :headers {"Content-Type" "application/json"}
        :body    (json/generate-string {:error "row and col must be integers"})})))
+
+(comment
+  (era5-summary-handler {:route-params {:row "10" :col "10"}})
+  ;; {:status 500,
+  ;;  :headers {"Content-Type" "application/json"},
+  ;;  :body "{\"error\":\"no locations in grid cell\"}"}
+
+  (era5-summary-handler {:route-params {:row "201" :col "1020"}})
+  ;; {:status 200,
+  ;;  :headers {"Content-Type" "application/json"},
+  ;;  :body "..."}
+  )
+
