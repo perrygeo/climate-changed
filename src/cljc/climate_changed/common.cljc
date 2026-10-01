@@ -168,28 +168,28 @@
      :display "block"}]
    [".mean-temperature-chart .chart-line"
     {:fill         "none"
-     :stroke       "var(--text-link)"
-     :stroke-width 2}]
+     :stroke       "var(--color-success)"
+     :stroke-width 1.0}]
    [".mean-temperature-chart circle.chart-point"
     {:fill         "var(--bg-primary)"
-     :stroke       "var(--text-link)"
-     :stroke-width 2}]
+     :stroke       "var(--color-success)"
+     :stroke-width 1.0}]
    [".mean-temperature-chart .chart-line--min"
     {:fill         "none"
-     :stroke       "var(--color-success)"
-     :stroke-width 1.5}]
+     :stroke       "var(--text-link)"
+     :stroke-width 1.0}]
    [".mean-temperature-chart .chart-line--max"
     {:fill         "none"
      :stroke       "var(--color-error)"
-     :stroke-width 1.5}]
+     :stroke-width 1.0}]
    [".mean-temperature-chart circle.chart-point--min"
     {:fill         "var(--bg-primary)"
-     :stroke       "var(--color-success)"
-     :stroke-width 1.5}]
+     :stroke       "var(--text-link)"
+     :stroke-width 1.0}]
    [".mean-temperature-chart circle.chart-point--max"
     {:fill         "var(--bg-primary)"
      :stroke       "var(--color-error)"
-     :stroke-width 1.5}]
+     :stroke-width 1.0}]
    [".mean-temperature-chart line.chart-gridline"
     {:stroke       "var(--border-tertiary)"
      :stroke-width 1}]

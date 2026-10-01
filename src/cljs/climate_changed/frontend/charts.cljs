@@ -40,9 +40,11 @@
   index for periods with no observations (nil start/end)."
   [period i]
   (let [start-year (some-> (:start period) (subs 0 4))
-        end-year   (some-> (:end period) (subs 0 4))]
+        ;; end-year   (some-> (:end period) (subs 0 4))
+        ]
     (if start-year
-      (str start-year "–" (or end-year "now"))
+      #_(str start-year "–" (or end-year "now"))
+      (str start-year "s")
       (str i))))
 
 (defn- period-series
@@ -61,19 +63,19 @@
   `periods` is the :periods vector from an ERA5 summary; `units` its :units
   string."
   [periods units]
-  (let [labels (mapv (fn [i p] (period-label p i)) (range) periods)
-        series [{:id    :mean
-                 :label "mean"
-                 :class "chart-line--mean"
-                 :pts   (period-series periods :mean units)}
-                {:id    :min
-                 :label "min"
-                 :class "chart-line--min"
-                 :pts   (period-series periods :min units)}
-                {:id    :max
-                 :label "max"
-                 :class "chart-line--max"
-                 :pts   (period-series periods :max units)}]
+  (let [labels   (mapv (fn [i p] (period-label p i)) (range) periods)
+        series   [{:id    :mean
+                   :label "mean"
+                   :class "chart-line--mean"
+                   :pts   (period-series periods :mean units)}
+                  {:id    :min
+                   :label "min"
+                   :class "chart-line--min"
+                   :pts   (period-series periods :min units)}
+                  {:id    :max
+                   :label "max"
+                   :class "chart-line--max"
+                   :pts   (period-series periods :max units)}]
         mean-pts (:pts (first series))]
     (if (empty? mean-pts)
       [:p {:class "chart-hint"} "No mean temperature data for this cell"]
@@ -82,7 +84,7 @@
             ;; The y-axis spans the full observed range across min, mean, and
             ;; max for a realistic scale.
             [lo hi]      (let [all-vals (vec (mapcat (fn [s] (map :value (:pts s))) series))
-                               [mn mx]   (js->clj (d3-array/extent (clj->js all-vals)))]
+                               [mn mx]  (js->clj (d3-array/extent (clj->js all-vals)))]
                            (if (= mn mx)
                              [(- mn 1) (+ mx 1)]
                              (let [pad (* 0.1 (- mx mn))]
@@ -115,8 +117,11 @@
             (let [y (y-scale t)]
               [:g {:key (str "ytick-" t)}
                [:line {:x1 0 :y1 y :x2 inner-width :y2 y :class "chart-gridline"}]
-               [:text {:x     -6                 :y y :text-anchor "end" :dominant-baseline "middle"
-                       :class "chart-axis-label"}
+               [:text {:x                 -6
+                       :y                 y
+                       :text-anchor       "end"
+                       :dominant-baseline "middle"
+                       :class             "chart-axis-label"}
                 (.toFixed t 1)]]))
           ;; x-axis period labels (rotated so adjacent decades stay legible)
           (for [l labels]
@@ -128,7 +133,7 @@
                     :class       "chart-axis-label"}
              l])
           ;; one line per series
-          (for [s series
+          (for [s     series
                 :when (seq (:pts s))]
             [:path {:key   (str "line-" (:id s))
                     :d     (line-gen (clj->js (:pts s)))
