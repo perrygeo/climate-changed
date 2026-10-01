@@ -39,6 +39,7 @@
 (integrant.repl/go)
 (shadow.cljs.devtools.server/start!)
 (shadow/watch :app)
+(println "✅ dev server: 'http://localhost:8081'")
 
 ;; ==========================================================================
 ;;  Manage the system interactively

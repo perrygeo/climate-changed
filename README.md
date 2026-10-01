@@ -10,13 +10,14 @@ Key source directories
 ```
  build                                        ;; uberjar build script
  dev                                          ;; utils for local development
+ infra                                        ;; NixOS and terraform for prod deployment
  resources                                    ;; static files shipped with release
- test                                         ;; unit/integration tests
- src/rs/era5-timeseries/                      ;; rust command line utility for fetching ERA5
  src/clj/climate_changed/backend/             ;; web server
  src/clj/climate_changed/era5/                ;; core weather data actions
  src/cljc/climate_changed/                    ;; shared utils, common math, clj/cljs agnostic
  src/cljs/climate_changed/frontend/           ;; interactive web map application
+ src/rs/era5-timeseries/                      ;; rust command line utility for fetching ERA5
+ test                                         ;; unit/integration tests
 ```
 
 ### Server

@@ -11,11 +11,11 @@
            reagent/reagent                {:mvn/version "2.0.1"}
            ring/ring-core                 {:mvn/version "1.15.5"}
            techascent/tech.ml.dataset     {:mvn/version "8.026"}}
- :aliases {:shadow-cljs {:extra-deps {thheller/shadow-cljs {:mvn/version "3.5.3"}}}
+ :aliases {:shadow-cljs {:extra-deps {thheller/shadow-cljs {:mvn/version "3.5.4"}}}
            :dev         {:extra-paths ["dev"]
                          :extra-deps  {cider/piggieback     {:mvn/version "0.7.0"}
                                        integrant/repl       {:mvn/version "0.5.1"}
-                                       thheller/shadow-cljs {:mvn/version "3.5.3"}}
+                                       thheller/shadow-cljs {:mvn/version "3.5.4"}}
                          :main-opts   ["-m" "shadow.cljs.devtools.cli" "server"]}
            :build       {:extra-paths ["build"]
                          :extra-deps  {io.github.clojure/tools.build
