@@ -23,7 +23,12 @@
                                         :git/url "https://github.com/clojure/tools.build"}}
                          :ns-default  build}
            :test        {:extra-paths ["test"]
-                         :extra-deps  {io.github.cognitect-labs/test-runner
-                                       {:git/tag "v0.5.1"
-                                        :git/sha "dfb30dd"}}
-                         :exec-fn     cognitect.test-runner.api/test}}}
+                         :extra-deps  {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
+                         :main-opts   ["-m" "kaocha.runner"]}
+           :coverage    {:extra-paths ["test"]
+                         :extra-deps  {cloverage/cloverage {:mvn/version "1.2.4"}}
+                         :main-opts   ["-m" "cloverage.coverage"
+                                       "--src-ns-path" "src/clj"
+                                       "--src-ns-path" "src/cljc"
+                                       "--test-ns-path" "test"
+                                       "--output" "target/coverage"]}}}

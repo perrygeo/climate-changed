@@ -1,4 +1,4 @@
-.PHONY: default dev clean infra release release-client release-server test test-clj test-cljs deploy
+.PHONY: default dev clean infra release release-client release-server test test-clj test-cljs coverage deploy
 
 default:
 	@echo "Usage:"
@@ -10,6 +10,7 @@ default:
 	@echo "  make test      - run all tests (JVM and Node)"
 	@echo "  make test-clj  - run Clojure tests on the JVM"
 	@echo "  make test-cljs - run ClojureScript tests on Node"
+	@echo "  make coverage  - JVM test coverage report (HTML in target/coverage)"
 
 dev:
 	@echo "Running dev REPL ... see 'dev/user.clj' for instructions"
@@ -46,10 +47,13 @@ clean:
 release: release-client release-era5-timeseries release-server
 
 test-clj:
-	clojure -X:test
+	clojure -M:test
 
 test-cljs:
 	npx shadow-cljs compile test && node target/node-tests.js
+
+coverage:
+	clojure -M:coverage
 
 test: test-clj test-cljs
 
