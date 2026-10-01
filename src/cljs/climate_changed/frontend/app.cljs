@@ -73,17 +73,23 @@
 
 (defn- fmt-value
   "Format a summary statistic. Kelvin values render as °C; everything else
-  shows two decimals with its unit."
+  shows two decimals with its unit. Nil (a period with no observations)
+  renders as an em dash."
   [x units]
-  (case units
-    "K" (str (.toFixed (- x 273.15) 1) " °C")
-    (str (.toFixed x 2) " " units)))
+  (if (nil? x)
+    "—"
+    (case units
+      "K" (str (.toFixed (- x 273.15) 1) " °C")
+      (str (.toFixed x 2) " " units))))
 
 (defn- fmt-coord [x]
   (.toFixed x 2))
 
 (defn- fmt-period [{:keys [start end]}]
-  (str (subs start 0 4) " – " (subs end 0 4)))
+  (cond
+    (nil? start) "—"
+    (nil? end)   (str (subs start 0 4) "–now")
+    :else        (str (subs start 0 4) "–" (subs end 0 4))))
 
 (defn- fmt-population
   "Render a population count with thousands separators, e.g. 1234567 -> \"1,234,567\"."
@@ -137,13 +143,15 @@
          [:thead
           [:tr [:th "period"] [:th "mean"] [:th "min"] [:th "max"] [:th "obs"]]]
          [:tbody
-          (for [p (:periods s)]
-            [:tr {:key (:start p)}
-             [:td (fmt-period p)]
-             [:td (fmt-value (:mean p) (:units s))]
-             [:td (fmt-value (:min p) (:units s))]
-             [:td (fmt-value (:max p) (:units s))]
-             [:td (:n p)]])]]])]))
+          (map-indexed
+           (fn [i p]
+             [:tr {:key i}
+              [:td (fmt-period p)]
+              [:td (fmt-value (:mean p) (:units s))]
+              [:td (fmt-value (:min p) (:units s))]
+              [:td (fmt-value (:max p) (:units s))]
+              [:td (:n p)]])
+           (:periods s))]]])]))
 
 (defn app
   "Markup for the main application div, top level layout"

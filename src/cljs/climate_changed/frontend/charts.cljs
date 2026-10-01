@@ -20,7 +20,7 @@
 ;; responsive via viewBox; SVG scales to its container width.
 (def ^:private chart-width  320)
 (def ^:private chart-height 200)
-(def ^:private margin {:top 16 :right 16 :bottom 36 :left 44})
+(def ^:private margin {:top 16 :right 16 :bottom 44 :left 44})
 
 (defn- kelvin->celsius [k]
   (- k 273.15))
@@ -118,12 +118,13 @@
                [:text {:x     -6                 :y y :text-anchor "end" :dominant-baseline "middle"
                        :class "chart-axis-label"}
                 (.toFixed t 1)]]))
-          ;; x-axis period labels
+          ;; x-axis period labels (rotated so adjacent decades stay legible)
           (for [l labels]
             [:text {:key         (str "xlabel-" l)
                     :x           (x-scale l)
-                    :y           (+ inner-height 18)
-                    :text-anchor "middle"
+                    :y           (+ inner-height 10)
+                    :text-anchor "end"
+                    :transform   (str "rotate(-45 " (x-scale l) " " (+ inner-height 10) ")")
                     :class       "chart-axis-label"}
              l])
           ;; one line per series

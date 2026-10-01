@@ -7,15 +7,31 @@
 
 (set! *warn-on-reflection* true)
 
+(def ^:private era5-start-year
+  "First year of the ERA5 record."
+  1940)
+
+(defn- utc-start-of-year
+  "UTC instant at the start of `year`."
+  [year]
+  (java.time.Instant/parse (str year "-01-01T00:00:00Z")))
+
+(defn- current-decade-start-year
+  "First year of the current UTC decade, e.g. 2020."
+  []
+  (let [^java.time.Year now (java.time.Year/now java.time.ZoneOffset/UTC)]
+    (* 10 (quot (.getValue now) 10))))
+
 (def climate-periods
-  "Contiguous reference periods for the climate summary, as [start end)
-  instants. A nil :end means through the latest observation."
-  [{:start (java.time.Instant/parse "1940-01-01T00:00:00Z")
-    :end   (java.time.Instant/parse "1970-01-01T00:00:00Z")}
-   {:start (java.time.Instant/parse "1970-01-01T00:00:00Z")
-    :end   (java.time.Instant/parse "2000-01-01T00:00:00Z")}
-   {:start (java.time.Instant/parse "2000-01-01T00:00:00Z")
-    :end   nil}])
+  "Contiguous decade reference periods for the climate summary, as [start end)
+  instants. Decades run from `era5-start-year` through the current decade; the
+  final (current) decade has a nil :end, meaning through the latest observation."
+  (let [end-year (current-decade-start-year)]
+    (mapv (fn [start-year]
+            {:start (utc-start-of-year start-year)
+             :end   (when (< start-year end-year)
+                      (utc-start-of-year (+ start-year 10)))})
+          (range era5-start-year (+ end-year 10) 10))))
 
 (defn- descriptive-stats-row
   "The `ds/descriptive-stats` row for `col-name` as a plain map, or nil."
