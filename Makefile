@@ -1,17 +1,18 @@
 .PHONY: default dev clean infra release release-client release-server test test-clj test-cljs coverage doc deploy
 
 default:
-	@echo "Usage:"
+	@echo "Usage, local development"
 	@echo "  make clean     - clean temporary files"
 	@echo "  make dev       - development REPL"
-	@echo "  make infra     - ensure AWS resources are configured"
-	@echo "  make release   - release build uberjar"
-	@echo "  make deploy    - deploy the uberjar to prod"
 	@echo "  make test      - run all tests (JVM and Node)"
 	@echo "  make test-clj  - run Clojure tests on the JVM"
 	@echo "  make test-cljs - run ClojureScript tests on Node"
 	@echo "  make coverage  - JVM test coverage report (HTML in target/coverage)"
 	@echo "  make doc       - API docs for all namespaces (HTML in target/docs)"
+	@echo "Usage, operations"
+	@echo "  make infra     - ensure AWS resources are configured"
+	@echo "  make release   - build the release uberjar"
+	@echo "  make deploy    - deploy the uberjar to prod"
 
 dev:
 	@echo "Running dev REPL ... see 'dev/user.clj' for instructions"
