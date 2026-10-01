@@ -1,6 +1,7 @@
 (ns climate-changed.frontend.app
   "Core app logic: location data loading fns and  views."
   (:require
+   [clojure.string :as str]
    [climate-changed.common :as common]
    [climate-changed.era5.grid :as grid]
    [climate-changed.era5.variables :as vars]
@@ -10,13 +11,18 @@
 
 (defn feature->loc
   "Convert a keywordized GeoJSON feature into the flat location map used
-  throughout the client: {:id :name :longitude :latitude}."
+  throughout the client:
+  {:id :name :longitude :latitude :country :region :featurecla :population}."
   [{:keys [id geometry properties]}]
   (let [[lon lat] (:coordinates geometry)]
-    {:id        id
-     :name      (:name properties)
-     :longitude lon
-     :latitude  lat}))
+    {:id         id
+     :name       (:name properties)
+     :longitude  lon
+     :latitude   lat
+     :country    (:adm0name properties)
+     :region     (:adm1name properties)
+     :featurecla (:featurecla properties)
+     :population (:pop_max properties)}))
 
 (defn fetch-locations!
   "Hit the locations API, parse the GeoJSON body, reset `all-locations`
@@ -79,18 +85,34 @@
 (defn- fmt-period [{:keys [start end]}]
   (str (subs start 0 4) " – " (subs end 0 4)))
 
+(defn- fmt-population
+  "Render a population count with thousands separators, e.g. 1234567 -> \"1,234,567\"."
+  [pop]
+  (-> (str (js/Math.round pop))
+      (.replace (js/RegExp. "\\B(?=(\\d{3})+(?!\\d))" "g") ",")))
+
 (defn selected-location-view
   "Render the currently selected location as a small labeled card instead of
   dumping raw EDN."
   []
-  (let [{:keys [name longitude latitude] :as loc} (:selected-location @state/state)]
+  (let [{:keys [name country region featurecla population] :as loc}
+        (:selected-location @state/state)
+        ;; Build a "Region, Country" subtitle, dropping blank/nil parts.
+        place (->> [region country]
+                   (remove (fn [s] (or (nil? s) (= "" s))))
+                   (str/join ", "))]
     [:div {:class "dataview"}
      (if (nil? loc)
        [:p {:class "summary-hint"} "No location selected"]
        [:div {:class "location-card"}
-        [:p {:class "location-name"} (or name "Unnamed location")]
-        [:p {:class "location-coords"}
-         (str (fmt-coord latitude) "°, " (fmt-coord longitude) "°")]])]))
+        [:h3 {:class "location-name"} (or name "Unnamed location")]
+        (when (not= "" place)
+          [:p {:class "location-place"} place])
+        (when (and featurecla (not= "" featurecla))
+          [:p {:class "location-featurecla"} featurecla])
+        (when (and population (pos? population))
+          [:p {:class "location-population"}
+           (str "Population: " (fmt-population population))])])]))
 
 (defn era5-summary-view []
   (let [s (:era5-summary @state/state)]
@@ -109,8 +131,8 @@
        [:div {:class "dataview"}
         [:p {:class "summary-title"}
          (str (get-in vars/era5-variables [(keyword (:var s)) :name] (:var s))
-              " · cell (" (:row s) ", " (:col s) ") · "
-              (fmt-coord (:lat s)) "°, " (fmt-coord (:lon s)) "°")]
+              ; " · cell (" (:row s) ", " (:col s) ") · "
+              ", lat: " (fmt-coord (:lat s)) "°, long: " (fmt-coord (:lon s)) "°")]
         [:table {:class "summary-table"}
          [:thead
           [:tr [:th "period"] [:th "mean"] [:th "min"] [:th "max"] [:th "obs"]]]

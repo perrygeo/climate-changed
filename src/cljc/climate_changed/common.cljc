@@ -75,7 +75,8 @@
    [:.dataview
     {:font-family   "monospace"
      :font-size     "0.85rem"
-     :margin-bottom "0.75rem"
+     :margin-top    "0.85rem"
+     :margin-bottom "0.85rem"
      :word-break    "break-all"}]
    [:.message {:color "var(--text-link)"}]
    [:.error {:color "var(--color-error)"}]
@@ -155,6 +156,22 @@
    [:.summary-table :td
     {:text-align "center"
      :padding    "0.15rem 0"}]
+   ;; Selected-location card in the side panel.
+   [:.location-card {:margin-bottom "0.75rem"}]
+   [:.location-name
+    {:font-weight "600"
+     :margin      "0 0 0.25rem 0"}]
+   [:.location-place
+    {:margin "0 0 0.15rem 0"
+     :color  "var(--text-secondary)"}]
+   [:.location-featurecla
+    {:margin     "0 0 0.15rem 0"
+     :color      "var(--text-muted)"
+     :font-style "italic"
+     :font-size  "0.8rem"}]
+   [:.location-population
+    {:margin "0"
+     :color  "var(--text-muted)"}]
    ;; Sizing for the cartoj/react-map-gl container (the map itself has no
    ;; intrinsic height, so this class is required for it to render). Fixed to
    ;; the viewport so the map fills the whole screen behind the overlays.

@@ -42,9 +42,13 @@
   (when-let [^js feature (aget (.-features e) 0)]
     (let [^js props  (.-properties feature)
           ^js coords (.-coordinates (.-geometry feature))]
-      (select-location! {:name      (.-name props)
-                         :longitude (aget coords 0)
-                         :latitude  (aget coords 1)}))))
+      (select-location! {:name       (.-name props)
+                         :longitude  (aget coords 0)
+                         :latitude   (aget coords 1)
+                         :country    (.-adm0name props)
+                         :region     (.-adm1name props)
+                         :featurecla (.-featurecla props)
+                         :population (.-pop_max props)}))))
 
 (defn- set-map-cursor!
   "Set the CSS cursor on the maplibre canvas."
