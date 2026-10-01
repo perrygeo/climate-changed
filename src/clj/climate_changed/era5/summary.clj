@@ -5,6 +5,8 @@
    [climate-changed.era5.variables :as vars]
    [tech.v3.dataset :as ds]))
 
+(set! *warn-on-reflection* true)
+
 (def climate-periods
   "Contiguous reference periods for the climate summary, as [start end)
   instants. A nil :end means through the latest observation."

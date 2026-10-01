@@ -97,6 +97,7 @@
   []
   [cartoj/interactive-map {:initial-view-state {:longitude 0 :latitude 16 :zoom 2.5}
                            :projection         "globe"
+                           :max-zoom           11
                            :style-diffing      false
                            :map-style          (:map-style @state/state)}
    [interop/reset-map-ref! state/map-ref]
