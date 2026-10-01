@@ -56,6 +56,9 @@
    [:.app-title
     {:margin    0
      :font-size "1.1rem"}]
+   [:a.app-title-link
+    {:color           "inherit"
+     :text-decoration "none"}]
    [:.status
     {:font-size "0.85rem"
      :color     "var(--text-secondary)"}]

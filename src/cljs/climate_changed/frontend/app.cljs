@@ -149,7 +149,8 @@
   (let [{:keys [loading-locations? message error]} @state/state]
     [:div
      [:header {:class "app-header"}
-      [:h1 {:class "app-title"} common/appname]
+      [:a {:class "app-title-link" :href "/"}
+       [:h1 {:class "app-title"} common/appname]]
       [:span {:class "status"} (when loading-locations? "Loading…")]]
      [:div {:class "side-panel"}
       [search/location-typeahead]

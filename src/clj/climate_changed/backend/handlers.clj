@@ -60,7 +60,7 @@
                    "    <style>" (compile-shared-styles) "</style>\n"
                    "  </head>\n"
                    "  <body class=\"home\">\n"
-                   "    <header class=\"app-header\"><h1 class=\"app-title\">" s/appname "</h1></header>\n"
+                   "    <header class=\"app-header\"><a class=\"app-title-link\" href=\"/\"><h1 class=\"app-title\">" s/appname "</h1></a></header>\n"
                    "    <main class=\"home-content\">\n"
                    body-html
                    "\n    </main>\n"
