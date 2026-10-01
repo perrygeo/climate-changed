@@ -23,7 +23,6 @@
    :body    (slurp (io/resource "ne_50m_populated_places_simple.geojson"))})
 
 (defn hello-handler
-  "Demo API endpoint."
   [_req]
   {:status 200
    :body   {:message (str "Hello from " s/appname "!")}})

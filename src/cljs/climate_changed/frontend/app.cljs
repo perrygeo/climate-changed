@@ -1,13 +1,13 @@
 (ns climate-changed.frontend.app
   "Core app logic: location data loading fns and  views."
   (:require
-   [clojure.string :as str]
    [climate-changed.common :as common]
    [climate-changed.era5.grid :as grid]
    [climate-changed.era5.variables :as vars]
    [climate-changed.frontend.interactive-map :as imap]
    [climate-changed.frontend.search :as search]
-   [climate-changed.frontend.state :as state]))
+   [climate-changed.frontend.state :as state]
+   [clojure.string :as str]))
 
 (defn feature->loc
   "Convert a keywordized GeoJSON feature into the flat location map used
@@ -59,7 +59,6 @@
 (defonce era5-summary-watch
   ;; Whenever the selected location changes, (re)load the ERA5 summary for
   ;; its snapped grid cell; clear it when the selection is cleared.
-  ;; performance implications? can we bail earlier and do less work if selected-locations hasn't changed
   (add-watch state/state :era5-summary
              (fn [_ _ old new]
                (let [loc (:selected-location new)]
@@ -131,7 +130,6 @@
        [:div {:class "dataview"}
         [:p {:class "summary-title"}
          (str (get-in vars/era5-variables [(keyword (:var s)) :name] (:var s))
-              ; " · cell (" (:row s) ", " (:col s) ") · "
               ", lat: " (fmt-coord (:lat s)) "°, long: " (fmt-coord (:lon s)) "°")]
         [:table {:class "summary-table"}
          [:thead

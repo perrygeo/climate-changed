@@ -1,11 +1,14 @@
 `climate-changed` is a Clojure and ClojureScript full-stack web application.
 
-`infra/` is the docker composed-based postgres database
+`infra/` is the NixOS and terraform configuration for production.
 
-`src/` is the `.clj`, `.cljc`, `.cljs`, and `sql` source files
+`src/` is the `.clj`, `.cljc`, `.cljs`, and `.rs` source files.
+
+`Makefile` describes all high-level dev tasks.
+
 
 ## Evaluating code
-The command `clj-nrepl-eval` is installed on your path.
+The command `clojure-eval` is installed on your path.
 
 Use the `clojure-eval` skill to test code, check if edited files compile, verify function behavior, eval code without editing files, or interact with a running REPL session state.
 Summary (in case you can't load the skill):
