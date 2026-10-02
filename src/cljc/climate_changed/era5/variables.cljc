@@ -29,3 +29,9 @@
           :units "J m⁻²"}
    :str  {:name  "Surface Net Thermal Radiation"
           :units "J m⁻²"}})
+
+(defn valid-varname?
+  "True when `varname` names a known ERA5 variable in `era5-variables`.
+  Accepts either a string (e.g. \"t2m\") or a keyword (e.g. :t2m)."
+  [varname]
+  (contains? era5-variables (keyword varname)))

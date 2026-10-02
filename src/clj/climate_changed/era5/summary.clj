@@ -67,6 +67,9 @@
 (defn era5-summary
   "Climate summary for a grid cell, broken into reference periods."
   [varname row col]
+  (when-not (vars/valid-varname? varname)
+    (throw (ex-info (str "Unknown ERA5 variable: " varname)
+                    {:status 400 :varname varname})))
   (let [data              (fetch/fetch-ts varname row col)
         {:keys [lat lon]} (grid/cell-center row col)]
     {:row     row
