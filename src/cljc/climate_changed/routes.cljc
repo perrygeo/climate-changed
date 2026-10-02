@@ -19,6 +19,7 @@
   ["/" {""                                  (get-only :home)
         "map"                               (get-only :map)
         "healthz"                           (get-only :healthz)
+        "api/locations/stats"               (get-only :location-stats)
         "api/hello"                         (get-only :hello)
         ["api/era5-summary/" :row "/" :col] (get-only :era5-summary)
         "api/locations"                     (get-only :locations)}])

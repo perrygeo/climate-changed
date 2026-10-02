@@ -14,6 +14,7 @@
   "Resolve a bidi route name to its Ring handler var."
   {:home               #'h/home-handler
    :map                #'h/spa-handler
+   :location-stats     #'h/location-stats-handler
    :healthz            #'h/healthz-handler
    :hello              #'h/hello-handler
    :era5-summary       #'h/era5-summary-handler

@@ -10,6 +10,7 @@
    [climate-changed.frontend.search :as search]
    [climate-changed.frontend.state :as state]
    [climate-changed.routes :as routes]
+   [cljs.reader :as reader]
    [clojure.string :as str]))
 
 (defn feature->loc
@@ -43,6 +44,21 @@
 (comment
   (fetch-locations!))
 
+(defn fetch-location-stats!
+  "Fetch location-index stats from the :location-stats route and stash them in
+  state. The response is EDN, so it is read with cljs.reader."
+  []
+  (-> (js/fetch (bidi/path-for routes/routes :location-stats))
+      (.then (fn [resp]
+               (if (.-ok resp)
+                 (.text resp)
+                 (throw (js/Error. (str "HTTP " (.-status resp)))))))
+      (.then (fn [txt] (reader/read-string txt)))
+      (.then (fn [stats]
+               (swap! state/state assoc :location-stats stats)))
+      (.catch (fn [err]
+                (swap! state/state assoc :location-stats {:error (str err)})))))
+
 (defn fetch-era5-summary!
   "Snap `loc` to the ERA5 grid and fetch that cell's climate summary into
   the `:era5-summary` key of the shared state atom."
@@ -57,6 +73,7 @@
         (.then (fn [^js data]
                  (when (= loc (:selected-location @state/state))
                    (swap! state/state assoc :era5-summary (js->clj data :keywordize-keys true)))))
+        (.then (fn [_] (fetch-location-stats!)))
         (.catch (fn [err]
                   (when (= loc (:selected-location @state/state))
                     (swap! state/state assoc :era5-summary {:error (str err)})))))))
@@ -165,7 +182,16 @@
      [:header {:class "app-header"}
       [:a {:class "app-title-link" :href "/"}
        [:h1 {:class "app-title"} common/appname]]
-      [:span {:class "status"} (when loading-locations? "Loading…")]]
+      (let [{:keys [n complete error]} (:location-stats @state/state)]
+        [:span {:class "status"}
+         (cond
+           loading-locations? "Loading…"
+           error              nil
+           (and n (pos? n))
+           (if (= n complete)
+             (str n " locations indexed")
+             (str complete " of " n " locations indexed"))
+           :else nil)])]
      [:div {:class "side-panel"}
       [search/location-typeahead]
       [selected-location-view]

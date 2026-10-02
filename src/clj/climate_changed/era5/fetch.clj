@@ -3,6 +3,7 @@
    [climate-changed.era5.grid :as grid]
    [clojure.java.io :as io]
    [clojure.string :as str]
+   [clojure.tools.logging :as log]
    [tech.v3.dataset :as ds]
    [tech.v3.datatype :as dtype]
    [tech.v3.datatype.datetime :as dt-dt]
@@ -112,6 +113,7 @@
       (try
         (when-not (.exists (io/file parquet-path))
           ;; Query the Icechunk repository on S3 and cache to permanent storage
+          (log/info (str "Fetching ERA5 timeseries for " varname " " row " " col))
           (let [cmd                    (era-download-cmd varname row col)
                 {:keys [out err exit]} (run-cmd cmd)]
             (when (seq err) (binding [*out* *err*] (print err)))

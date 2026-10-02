@@ -1,10 +1,11 @@
 (ns climate-changed.backend.handlers
   (:require
    [cheshire.core :as json]
-   [climate-changed.backend.location-index :as location-index]
+   [climate-changed.backend.location-index :as loc]
    [climate-changed.common :as s]
    [climate-changed.era5.grid :as grid]
    [climate-changed.era5.summary :as summary]
+   [climate-changed.era5.variables :as vars]
    [clojure.java.io :as io]
    [garden.core :as garden]
    [markdown.core :as md]
@@ -36,6 +37,18 @@
   {:status  200
    :headers {"Content-Type" "application/geo+json"}
    :body    geojson-payload})
+
+(defn location-stats-handler
+  "Location fetch statistics: how many indexed locations have a cached ERA5
+  timeseries, and what fraction that is of the total index."
+  [_req]
+  (let [n         (loc/n-locations)
+        n-with-ts (loc/n-locations-with-ts)
+        pct       (when (pos? n) (double (/ n-with-ts n)))]
+    {:status 200
+     :body   {:n        n
+              :complete n-with-ts
+              :pct      pct}}))
 
 (defn hello-handler
   [_req]
@@ -90,8 +103,6 @@
   (try (Long/parseLong s)
        (catch NumberFormatException _ nil)))
 
-(def default-varname "t2m")
-
 (defn era5-summary-handler
   "ERA5 climate summary for a grid cell.
   Default var for now, returns its descriptive statistics as JSON.
@@ -105,9 +116,9 @@
         col (->long (:col route-params))]
     (if (and row col)
       (let [bbox (grid/cell-bbox row col)]
-        (if (seq (location-index/query bbox))
+        (if (seq (loc/query bbox))
           (try
-            (let [summary (summary/era5-summary default-varname row col)]
+            (let [summary (summary/era5-summary vars/default-varname row col)]
               {:status  200
                :headers {"Content-Type" "application/json"}
                :body    (json/generate-string summary)})

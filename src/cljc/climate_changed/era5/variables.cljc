@@ -1,5 +1,9 @@
 (ns climate-changed.era5.variables)
 
+(def default-varname
+  "Default ERA5 variable used for location timeseries fetches."
+  "t2m")
+
 (def era5-variables
   {:t2m  {:name  "2 Metre Temperature"
           :units "K"}

@@ -34,7 +34,8 @@
   (reset! root (rdom/create-root (js/document.getElementById "app")))
   (imap/watch-color-scheme!)
   (re-render)
-  (app/fetch-locations!))
+  (app/fetch-locations!)
+  (app/fetch-location-stats!))
 
 (comment
   state/state
