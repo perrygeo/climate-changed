@@ -18,13 +18,16 @@
    :headers {"Content-Type" "application/json"}
    :body    "\"ok\""})
 
+(def geojson-payload
+  (slurp (io/resource "ne_50m_populated_places_simple.geojson")))
+
 (defn locations-handler
   "GeoJSON endpoint: every location, served as RFC 7946 text from a bundled
   Natural Earth resource."
   [_req]
   {:status  200
    :headers {"Content-Type" "application/geo+json"}
-   :body    (slurp (io/resource "ne_50m_populated_places_simple.geojson"))})
+   :body    geojson-payload})
 
 (defn hello-handler
   [_req]
@@ -106,7 +109,7 @@
                  :headers {"Content-Type" "application/json"}
                  :body    (json/generate-string {:error (ex-message e)})}
                 (throw e))))
-          {:status  500
+          {:status  404
            :headers {"Content-Type" "application/json"}
            :body    (json/generate-string {:error "no locations in grid cell"})}))
       {:status  400

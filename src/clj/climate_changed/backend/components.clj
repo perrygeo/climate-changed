@@ -16,7 +16,7 @@
 (defmethod ig/init-key :climate-changed/server
   [_ {:keys [handler port]}]
   (println "Starting Jetty HTTP server on port" port)
-  (jetty/run-jetty handler {:port port :join? false}))
+  (jetty/run-jetty handler {:port port :join? false :send-server-version? false}))
 
 (defmethod ig/halt-key! :climate-changed/server
   [_ server]
