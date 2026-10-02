@@ -4,6 +4,7 @@
    [clojure.string :as str]
    [integrant.core :as ig]
    [integrant.repl]
+   [integrant.repl.state :as state]
    [shadow.cljs.devtools.api :as shadow]
    [shadow.cljs.devtools.server])
   (:import
@@ -36,10 +37,17 @@
  (fn []
    (ig/load-namespaces main/config)
    main/config))
-(integrant.repl/go)
-(shadow.cljs.devtools.server/start!)
-(shadow/watch :app)
-(println "✅ dev server: 'http://localhost:8081'")
+
+(defonce ^:clj-reload/keep dev-auto-started?
+  (when (nil? state/system)
+    (integrant.repl/go)
+    (shadow.cljs.devtools.server/start!)
+    (shadow/watch :app) ; :already-watching
+    (println "✅ dev server: 'http://localhost:8081'")
+    true))
+
+(comment ;; should always be true, set at first startup only
+  dev-auto-started?)
 
 ;; ==========================================================================
 ;;  Manage the system interactively
@@ -48,10 +56,7 @@
   (integrant.repl/halt)
   (integrant.repl/reset)
 
-  ;; Important
-  ;; Open the app in the default browser to connect the repl
-  ;; otherwise, refresh existing tabs to re-connect
-  (open-browser "http://localhost:8081")
+  (open-browser "http://localhost:8081")  ;; Ctl-Shift-R to hard reload
 
   ;; current namespace info, hack
   (symbol (namespace ::x))
@@ -68,7 +73,7 @@
   ;; using NeoVim and Conjure - :ConjureShadowSelect app - or
   (shadow/nrepl-select :app)
   (+ 1 1) ;; if No available JS runtime, see "important" above
-  #_(js/alert "Hello from the REPL") ;; cljs only
+  (js/alert "Hello from the REPL") ;; cljs only
   :cljs/quit
   ;;
   ;; 3. Switch sessions to get back and forth between clj and cljs
