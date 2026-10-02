@@ -87,17 +87,25 @@
 
   The cell's bounding box is validated against the location spatial index:
   cells with no nearby locations are rejected with a 500 so arbitrary
-  row/col requests can't fill the ever-growing era_ts cache."
+  row/col requests can't fill the ever-growing era_ts cache. If the ERA5
+  fetch is already in progress (or too many are running), returns 423."
   [{:keys [route-params]}]
   (let [row (->long (:row route-params))
         col (->long (:col route-params))]
     (if (and row col)
       (let [bbox (grid/cell-bbox row col)]
         (if (seq (location-index/query bbox))
-          (let [summary (summary/era5-summary default-varname row col)]
-            {:status  200
-             :headers {"Content-Type" "application/json"}
-             :body    (json/generate-string summary)})
+          (try
+            (let [summary (summary/era5-summary default-varname row col)]
+              {:status  200
+               :headers {"Content-Type" "application/json"}
+               :body    (json/generate-string summary)})
+            (catch clojure.lang.ExceptionInfo e
+              (if-let [status (:status (ex-data e))]
+                {:status  status
+                 :headers {"Content-Type" "application/json"}
+                 :body    (json/generate-string {:error (ex-message e)})}
+                (throw e))))
           {:status  500
            :headers {"Content-Type" "application/json"}
            :body    (json/generate-string {:error "no locations in grid cell"})}))

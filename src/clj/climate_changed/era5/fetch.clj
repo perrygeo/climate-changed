@@ -71,23 +71,56 @@
         exit (.waitFor proc)]
     {:out out :err err :exit exit}))
 
+(def max-concurrent-fetches 3)
+
+(defonce fetch-ts-status (atom {}))
+
+(defn- try-acquire-fetch!
+  "Try to reserve a slot in `fetch-ts-status` for this varname/row/col.
+  Returns true when the lock was acquired, false when the same fetch is
+  already running or `max-concurrent-fetches` slots are already taken."
+  [varname row col]
+  (let [k         [varname row col]
+        [old new] (swap-vals! fetch-ts-status
+                              (fn [status]
+                                (if (or (contains? status k)
+                                        (>= (count status) max-concurrent-fetches))
+                                  status
+                                  (assoc status k true))))]
+    (and (not (contains? old k))
+         (contains? new k))))
+
+(defn- release-fetch! [varname row col]
+  (swap! fetch-ts-status dissoc [varname row col]))
+
 (defn fetch-ts
   "Fetch timeseries ERA5 data for the given pixel."
   [varname row col]
   (let [parquet-path (expected-path varname row col)
         exists?      (.exists (io/file parquet-path))]
     (when-not exists?
-      ;; Query the Icechunk repository on S3 and cache to permanent storage
-      ;; via the Rust era5-timeseries binary (see src/rs/era5-timeseries).
-      ;; This acts as an ever-growing cache, hopefully bound by the fact that
-      ;; callers won't try anything stupid (all rows x cols x vars = 100+ TB).
-      (let [cmd                    (era-download-cmd varname row col)
-            {:keys [out err exit]} (run-cmd cmd)]
-        (when (seq err) (binding [*out* *err*] (print err)))
-        (when-not (zero? exit)
-          (throw (ex-info "Command failed" {:exit exit :out out :err err :cmd cmd})))
-        (assert (= (str/trim out) parquet-path))))
-    ;; read from permanent storage and return a clean dataset
+      ;; Concurrency gate: keep at most max-concurrent-fetches
+      ;; in flight and never start a second fetch for the same pixel.
+      (when-not (try-acquire-fetch! varname row col)
+        (Thread/sleep 500)
+        (when-not (try-acquire-fetch! varname row col) ;; one retry
+          (throw (ex-info "ERA5 fetch already in progress; try again later"
+                          {:status  423
+                           :varname varname
+                           :row     row
+                           :col     col}))))
+      (try
+        (when-not (.exists (io/file parquet-path))
+          ;; Query the Icechunk repository on S3 and cache to permanent storage
+          (let [cmd                    (era-download-cmd varname row col)
+                {:keys [out err exit]} (run-cmd cmd)]
+            (when (seq err) (binding [*out* *err*] (print err)))
+            (when-not (zero? exit)
+              (throw (ex-info "Command failed" {:exit exit :out out :err err :cmd cmd})))
+            (assert (= (str/trim out) parquet-path))))
+        (finally
+          (release-fetch! varname row col))))
+    ;; Read from permanent storage and return a clean dataset
     (->
      (pq/parquet->ds parquet-path)
      (fix-valid-time))))
