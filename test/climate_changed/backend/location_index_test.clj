@@ -11,6 +11,19 @@
       (is (contains? names "London")
           (str "expected London in " names)))))
 
+(deftest query-bboxes-test
+  (let [query-bboxes #'location-index/query-bboxes]
+    (testing "passes through boxes already in 0..360 order"
+      (is (= [[10.0 45 20.0 48]] (query-bboxes [10 45 20 48]))))
+    (testing "splits boxes that cross the prime meridian"
+      (is (= [[359.875 51.375 360.0 51.625]
+              [0.0 51.375 0.125 51.625]]
+             (query-bboxes [-0.125 51.375 0.125 51.625]))))))
+
+;; future ideas:
+;; - parquet-file->cell: parse temp era_ts/<row>/<col>/<var>.parquet paths,
+;;   including rejection of files outside the expected layout.
+
 (deftest location-stats-test
   (location-index/init!)
   (testing "n-locations reflects the initialized index"
