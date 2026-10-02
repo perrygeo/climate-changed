@@ -17,6 +17,17 @@
     (.debug logger (str "Built location spatial index of " n " places"))
     n))
 
+(defmethod ig/init-key :climate-changed/backfill-worker
+  [_ _opts]
+  (.debug logger "Starting location backfill worker")
+  (location-index/start-worker!)
+  ::running)
+
+(defmethod ig/halt-key! :climate-changed/backfill-worker
+  [_ _worker]
+  (.debug logger "Stopping location backfill worker")
+  (location-index/stop-worker!))
+
 (defmethod ig/init-key :climate-changed/server
   [_ {:keys [handler port]}]
   (.debug logger (str "Starting Jetty HTTP server on port " port))

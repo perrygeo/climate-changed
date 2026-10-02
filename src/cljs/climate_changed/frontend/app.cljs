@@ -73,6 +73,8 @@
         (.then (fn [^js data]
                  (when (= loc (:selected-location @state/state))
                    (swap! state/state assoc :era5-summary (js->clj data :keywordize-keys true)))))
+        ;; A selection likely triggered a backfill fetch for its cell, so
+        ;; refresh the indexed-locations count once the summary resolves.
         (.then (fn [_] (fetch-location-stats!)))
         (.catch (fn [err]
                   (when (= loc (:selected-location @state/state))

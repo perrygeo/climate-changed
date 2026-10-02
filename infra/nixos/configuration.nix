@@ -296,6 +296,9 @@ in
 
     environment = {
       PORT = "9000";
+      # Cache the extracted era5-timeseries binary in a stable, owned
+      # location instead of accumulating temp files in /tmp.
+      ERA5_FETCHER_CACHE = "/var/lib/climate-changed/era5-timeseries";
     };
 
     serviceConfig = {

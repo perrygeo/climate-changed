@@ -9,22 +9,38 @@
    [tech.v3.datatype.datetime :as dt-dt]
    [tech.v3.libs.parquet :as pq]))
 
+(defn- stable-binary-path
+  "A fixed, writable location to cache the extracted binary so we don't
+   accumulate a new temp file on every fetch. Override with
+   $ERA5_FETCHER_CACHE for deployments where the temp dir is unsuitable."
+  []
+  (or (System/getenv "ERA5_FETCHER_CACHE")
+      (-> (io/file (System/getProperty "java.io.tmpdir") "era5-timeseries")
+          .getPath)))
+
 (defn- extract-binary!
   "Resolve `resource-path` on the classpath to a runnable binary.
    When the resource lives inside a jar (the uberjar),
-   copy it to a temp file and make it executable."
+   copy it once to a stable location and reuse it on subsequent calls,
+   so we don't accumulate temp files in /tmp."
   [resource-path]
   (when-let [url (io/resource resource-path)]
     (case (.getProtocol url)
       "file" (let [f (java.io.File. (.toURI url))]
                (when (.isFile f) f))
-      "jar"  (let [tmp (java.io.File/createTempFile "era5-timeseries" nil)]
-               (.deleteOnExit tmp)
-               (with-open [in  (io/input-stream url)
-                           out (io/output-stream tmp)]
-                 (io/copy in out))
-               (.setExecutable tmp true)
-               tmp)
+      "jar"  (let [dest (io/file (stable-binary-path))
+                   len  (.getContentLengthLong (.openConnection url))]
+               ;; Reuse an existing copy only when it matches the
+               ;; resource's size; otherwise (re)extract it.
+               (when-not (and (.isFile dest)
+                              (pos? len)
+                              (= (.length dest) len))
+                 (io/make-parents dest)
+                 (with-open [in  (io/input-stream url)
+                             out (io/output-stream dest)]
+                   (io/copy in out))
+                 (.setExecutable dest true))
+               dest)
       nil)))
 
 (defn- fetcher-path

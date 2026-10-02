@@ -13,6 +13,7 @@
 
 (def config
   {:climate-changed/location-index {}
+   :climate-changed/backfill-worker {:location-index (ig/ref :climate-changed/location-index)}
    :climate-changed/handler         {:location-index (ig/ref :climate-changed/location-index)}
    :climate-changed/server          {:port    (Integer/parseInt (or (System/getenv "PORT") "8081"))
                                      :handler (ig/ref :climate-changed/handler)}})

@@ -9,7 +9,8 @@
    [climate-changed.spatial-index :as spatial]
    [clojure.java.io :as io]
    [clojure.set :as set]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [clojure.tools.logging :as log]))
 
 (set! *warn-on-reflection* true)
 
@@ -40,6 +41,84 @@
   (consume-location-fetch)
   ;;
   )
+
+(def ^:private fetch-interval-ms
+  "Pause between successive backfill fetches, to keep load on the upstream
+   Icechunk repository gentle."
+  10000)
+
+;; Holds the running background worker, or nil when stopped.
+;; Shape: {:thread Thread :running? (atom boolean) :monitor Object}
+(defonce ^:private worker (atom nil))
+
+(defn- drain-queue!
+  "Consume queued fetches one at a time, pausing `fetch-interval-ms` between
+   each, until the queue drains or `running?` flips to false.
+
+   A failing fetch is logged and left queued; the inter-fetch sleep keeps a
+   persistently-failing item from spinning the CPU."
+  [running?]
+  (while (and @running? (seq @locations-to-be-fetched))
+    (try
+      (consume-location-fetch)
+      (catch Exception e
+        (log/warn e "Backfill fetch failed; leaving item queued")))
+    (when (and @running? (seq @locations-to-be-fetched))
+      (Thread/sleep ^long fetch-interval-ms))))
+
+(defn- worker-loop
+  "Drain the queue, then park on `monitor` until a refill wakes us. Repeats
+   until `running?` is cleared."
+  [running? ^Object monitor]
+  (while @running?
+    (drain-queue! running?)
+    (locking monitor
+      (when (and @running? (empty? @locations-to-be-fetched))
+        (.wait monitor)))))
+
+(defn start-worker!
+  "Start the background backfill worker if one is not already running.
+
+   The worker watches `locations-to-be-fetched`: it drains the queue (one
+   fetch every `fetch-interval-ms`), then sleeps until the atom transitions
+   from empty to non-empty, at which point it resumes draining. Returns the
+   worker thread, or nil if one was already running."
+  []
+  (when-not @worker
+    (let [running? (atom true)
+          monitor  (Object.)
+          thread   (Thread.
+                    ^Runnable (fn []
+                                (try
+                                  (worker-loop running? monitor)
+                                  (catch InterruptedException _ nil)
+                                  (catch Throwable t
+                                    (log/error t "Backfill worker died"))))
+                    "location-backfill-worker")]
+      (add-watch locations-to-be-fetched ::worker
+                 (fn [_ _ old new]
+                   (when (and (empty? old) (seq new))
+                     (locking monitor (.notifyAll monitor)))))
+      (.setDaemon thread true)
+      (.start thread)
+      (reset! worker {:thread thread :running? running? :monitor monitor})
+      (log/info "Started location backfill worker")
+      thread)))
+
+(defn stop-worker!
+  "Stop the background backfill worker if one is running. Returns true when a
+   worker was stopped, false otherwise."
+  []
+  (if-let [{:keys [^Thread thread running? ^Object monitor]} @worker]
+    (do
+      (remove-watch locations-to-be-fetched ::worker)
+      (reset! running? false)
+      (locking monitor (.notifyAll monitor))
+      (.interrupt thread)
+      (reset! worker nil)
+      (log/info "Stopped location backfill worker")
+      true)
+    false))
 
 (def ^:private era-ts-root "era_ts")
 
