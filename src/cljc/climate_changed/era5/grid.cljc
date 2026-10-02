@@ -15,7 +15,7 @@
                :else f))))
 
 (defn snap-coords
-  "Snap an arbitrary lat/lon point to the nearest cell 
+  "Snap an arbitrary lat/lon point to the nearest cell
   of the ERA5 0.25-degree global grid.
 
   The ERA5 store's grid is
@@ -60,9 +60,11 @@
   [min-lon min-lat max-lon max-lat]. Cells are 0.25 x 0.25 degrees, centered
   on `cell-center`, so each edge is 0.125 degrees from the center.
 
-  Longitude uses the grid's 0..360 convention (matching `cell-center` and
-  `snap-coords`), not the -180..180 convention of GeoJSON sources."
+  Longitude follows `cell-center`'s 0..360 convention.
+  Note: the prime-meridian (col 0) longitude is returned as -0.125 to 0.125.
+  Callers that normalize longitudes MUST handle that seam by creating two bboxes
+  on either side of the prime meridian."
   [row col]
   (let [{:keys [lat lon]} (cell-center row col)
-        half 0.125]
+        half              0.125]
     [(- lon half) (- lat half) (+ lon half) (+ lat half)]))
