@@ -302,7 +302,9 @@ in
       # StateDirectory creates/owns /var/lib/climate-changed for us.
       StateDirectory = "climate-changed";
       WorkingDirectory = "/var/lib/climate-changed";
-      ExecStart = "${pkgs.openjdk25_headless}/bin/java -jar /var/lib/climate-changed/production.jar";
+      # --enable-native-access silences the JVM's "restricted method" warnings
+      # triggered by Hadoop's NativeCodeLoader calling System::loadLibrary.
+      ExecStart = "${pkgs.openjdk25_headless}/bin/java --enable-native-access=ALL-UNNAMED -jar /var/lib/climate-changed/production.jar";
       Restart = "on-failure";
       RestartSec = 5;
       # Only start once the symlink exists; avoids crash-looping before first deploy.

@@ -5,12 +5,18 @@
     </encoder>
   </appender>
 
-  <!-- Jetty logs every thread lifecycle event at DEBUG; keep it quiet. -->
-  <logger name="org.eclipse.jetty" level="INFO"/>
+  <!-- Jetty startup/thread-lifecycle chatter isn't useful in prod; only
+       WARN and above (real problems) get through. Request logging is done by
+       climate-changed's own middleware instead. -->
+  <logger name="org.eclipse.jetty" level="WARN"/>
 
   <!-- Hadoop's CodecPool logs at INFO whenever it allocates a fresh gzip
        decompressor for the parquet read; keep it quiet. -->
   <logger name="org.apache.hadoop.io.compress.CodecPool" level="WARN"/>
+
+  <!-- Hadoop warns it couldn't load native libs and falls back to builtin-java
+       classes; that fallback is expected in the uberjar. -->
+  <logger name="org.apache.hadoop.util.NativeCodeLoader" level="ERROR"/>
 
   <root level="INFO">
     <appender-ref ref="STDOUT"/>

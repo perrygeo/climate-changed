@@ -2,7 +2,7 @@
   (:require
    [bidi.ring :refer [make-handler]]
    [climate-changed.backend.handlers :as h]
-   [climate-changed.backend.middleware :refer [wrap-edn-response wrap-gzip-middleware wrap-security-headers]]
+   [climate-changed.backend.middleware :refer [wrap-edn-response wrap-gzip-middleware wrap-request-logging wrap-security-headers]]
    [climate-changed.routes :as routes]
    [ring.middleware.content-type :refer [wrap-content-type]]
    [ring.middleware.not-modified :refer [wrap-not-modified]]
@@ -11,13 +11,13 @@
 (set! *warn-on-reflection* true)
 
 (def handler-fn
-  "Resolve a bidi route name (keyword) to its Ring handler var."
-  {:home         #'h/home-handler
-   :map          #'h/spa-handler
-   :healthz      #'h/healthz-handler
-   :hello        #'h/hello-handler
-   :era5-summary #'h/era5-summary-handler
-   :locations    #'h/locations-handler
+  "Resolve a bidi route name to its Ring handler var."
+  {:home               #'h/home-handler
+   :map                #'h/spa-handler
+   :healthz            #'h/healthz-handler
+   :hello              #'h/hello-handler
+   :era5-summary       #'h/era5-summary-handler
+   :locations          #'h/locations-handler
    :method-not-allowed #'h/method-not-allowed-handler})
 
 (defn routes-or-resources
@@ -37,4 +37,5 @@
       wrap-params
       wrap-content-type
       wrap-not-modified
-      wrap-gzip-middleware))
+      wrap-gzip-middleware
+      wrap-request-logging))

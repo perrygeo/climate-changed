@@ -81,7 +81,7 @@ async fn main() -> Result<()> {
         .with_context(|| format!("opening zarr array {array_path}"))?;
 
     let shape = array.shape().to_vec();
-    eprintln!("reading {var} at (row {row}, col {col}) from {BUCKET}/{PREFIX} :: shape {shape:?}");
+    // eprintln!("reading {var} at (row {row}, col {col}) from {BUCKET}/{PREFIX} :: shape {shape:?}");
 
     // 4. Decode just this grid cell across the full time dimension.
     //    zarrs handles the chunk lookups and pcodec decoding.
@@ -96,11 +96,6 @@ async fn main() -> Result<()> {
         .await
         .context("reading array subset")?;
     let series: Vec<f32> = data.iter().copied().collect();
-    eprintln!(
-        "decoded {} values ({} non-finite)",
-        series.len(),
-        series.iter().filter(|v| !v.is_finite()).count()
-    );
 
     // 5. Reconstruct the hourly UTC timestamps (hours since 1940-01-01T00:00Z).
     let epoch_ns = Utc

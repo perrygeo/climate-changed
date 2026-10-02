@@ -3,9 +3,13 @@
    [climate-changed.backend.components]
    [climate-changed.common :as common]
    [integrant.core :as ig])
+  (:import [org.slf4j LoggerFactory])
   (:gen-class))
 
 (set! *warn-on-reflection* true)
+
+(def ^:private ^org.slf4j.Logger logger
+  (LoggerFactory/getLogger "climate-changed.backend.main"))
 
 (def config
   {:climate-changed/location-index {}
@@ -19,5 +23,5 @@
   (let [system (ig/init config)]
     (.addShutdownHook (Runtime/getRuntime)
                       (Thread. ^Runnable (fn [] (when system  (ig/halt! system)))))
-    (println (str common/appname " started on http://localhost:" (:port (:climate-changed/server config))))
+    (.info logger (str common/appname " started on http://localhost:" (:port (:climate-changed/server config))))
     @(promise)))

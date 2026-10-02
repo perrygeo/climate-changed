@@ -7,7 +7,8 @@
   (:import
    [java.io ByteArrayOutputStream File InputStream]
    [java.nio.charset StandardCharsets]
-   [java.util.zip GZIPOutputStream]))
+   [java.util.zip GZIPOutputStream]
+   [org.slf4j LoggerFactory]))
 
 (set! *warn-on-reflection* true)
 
@@ -109,6 +110,31 @@
   (fn [request]
     (some-> (handler request)
             (assoc-in [:headers "Referrer-Policy"] "strict-origin-when-cross-origin"))))
+
+(defn- elapsed-ms
+  "Elapsed milliseconds since `start-nanos` (captured with System/nanoTime)."
+  [start-nanos]
+  (quot (- (System/nanoTime) start-nanos) 1000000))
+
+(defn wrap-request-logging
+  "Logs every HTTP request: method, URI (with query string), response status,
+  and elapsed milliseconds. Runs as the outermost middleware so it also covers
+  static resources and exceptions thrown by inner middleware."
+  [handler]
+  (let [^org.slf4j.Logger logger (LoggerFactory/getLogger "climate-changed.http")]
+    (fn [{:keys [request-method uri query-string] :as request}]
+      (let [start  (System/nanoTime)
+            method (-> request-method name str/upper-case)
+            target (if query-string (str uri "?" query-string) uri)]
+        (try
+          (let [response (handler request)]
+            (.info logger (str method " " target " -> " (:status response)
+                               " (" (elapsed-ms start) " ms)"))
+            response)
+          (catch Throwable t
+            (.error logger (str method " " target " -> 500 (" (elapsed-ms start)
+                                " ms) " (.getMessage t)))
+            (throw t)))))))
 
 (defn wrap-security-headers
   "Adds baseline security headers to every response.

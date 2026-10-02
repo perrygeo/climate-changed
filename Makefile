@@ -89,3 +89,6 @@ release-era5-timeseries:
 	nix shell --extra-experimental-features 'nix-command flakes' 'nixpkgs#pkgsCross.musl64.stdenv.cc' 'nixpkgs#cmake' -c bash -lc 'set -euo pipefail; cd src/rs/era5-timeseries; export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-unknown-linux-musl-gcc CC_x86_64_unknown_linux_musl=x86_64-unknown-linux-musl-gcc CXX_x86_64_unknown_linux_musl=x86_64-unknown-linux-musl-g++ AR_x86_64_unknown_linux_musl=x86_64-unknown-linux-musl-ar; cargo build --release --target $(MUSL_TARGET)' && \
 	install -D -m 755 src/rs/era5-timeseries/target/$(MUSL_TARGET)/release/era5-timeseries resources/bin/era5-timeseries
 	@echo resources/bin/era5-timeseries
+
+logs:
+	$(SSH) "journalctl -u climate-changed.service -f"
