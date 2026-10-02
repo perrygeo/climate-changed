@@ -1,6 +1,7 @@
 (ns climate-changed.frontend.app
   "Core app logic: location data loading fns and  views."
   (:require
+   [bidi.bidi :as bidi]
    [climate-changed.common :as common]
    [climate-changed.era5.grid :as grid]
    [climate-changed.era5.variables :as vars]
@@ -8,6 +9,7 @@
    [climate-changed.frontend.interactive-map :as imap]
    [climate-changed.frontend.search :as search]
    [climate-changed.frontend.state :as state]
+   [climate-changed.routes :as routes]
    [clojure.string :as str]))
 
 (defn feature->loc
@@ -30,7 +32,7 @@
   and update `state` accordingly."
   []
   (swap! state/state assoc :loading-locations? true :error nil :message nil)
-  (-> (js/fetch "/api/locations")
+  (-> (js/fetch (bidi/path-for routes/routes :locations))
       (.then (fn [resp] (.json resp)))
       (.then (fn [^js geojson]
                (swap! state/state assoc :all-locations
@@ -47,7 +49,7 @@
   [{:keys [longitude latitude]}]
   (let [{:keys [row col]} (grid/snap-coords longitude latitude)]
     (swap! state/state assoc :era5-summary {:loading? true})
-    (-> (js/fetch (str "/api/era5-summary/" row "/" col))
+    (-> (js/fetch (bidi/path-for routes/routes :era5-summary :row row :col col))
         (.then (fn [resp]
                  (if (.-ok resp)
                    (.json resp)

@@ -1,9 +1,11 @@
 (ns climate-changed.frontend.interactive-map
   "Interactive map interaction and styling. Primarily using Maplibre API via cartoj."
   (:require
+   [bidi.bidi :as bidi]
    [cartoj.core :as cartoj]
    [cartoj.interop :as interop]
-   [climate-changed.frontend.state :as state]))
+   [climate-changed.frontend.state :as state]
+   [climate-changed.routes :as routes]))
 
 (def light-style "/styles/light.json")
 
@@ -103,7 +105,7 @@
    [interop/reset-map-ref! state/map-ref]
    [cartoj/source {:id   "locations"
                    :type "geojson"
-                   :data "/api/locations"}
+                   :data (bidi/path-for routes/routes :locations)}
     [cartoj/layer {:id     locations-layer-id
                    :type   "circle"
                    :source "locations"

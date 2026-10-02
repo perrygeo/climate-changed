@@ -18,6 +18,14 @@
    :headers {"Content-Type" "application/json"}
    :body    "\"ok\""})
 
+(defn method-not-allowed-handler
+  "Respond 405 for paths that match a route but use a disallowed method."
+  [_req]
+  {:status  405
+   :headers {"Content-Type" "application/json"
+             "Allow"        "GET"}
+   :body    (json/generate-string {:error "method not allowed"})})
+
 (def geojson-payload
   (slurp (io/resource "ne_50m_populated_places_simple.geojson")))
 
