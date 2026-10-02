@@ -46,7 +46,7 @@
 (defn fetch-era5-summary!
   "Snap `loc` to the ERA5 grid and fetch that cell's climate summary into
   the `:era5-summary` key of the shared state atom."
-  [{:keys [longitude latitude]}]
+  [{:keys [longitude latitude] :as loc}]
   (let [{:keys [row col]} (grid/snap-coords longitude latitude)]
     (swap! state/state assoc :era5-summary {:loading? true})
     (-> (js/fetch (bidi/path-for routes/routes :era5-summary :row row :col col))
@@ -55,9 +55,11 @@
                    (.json resp)
                    (throw (js/Error. (str "HTTP " (.-status resp)))))))
         (.then (fn [^js data]
-                 (swap! state/state assoc :era5-summary (js->clj data :keywordize-keys true))))
+                 (when (= loc (:selected-location @state/state))
+                   (swap! state/state assoc :era5-summary (js->clj data :keywordize-keys true)))))
         (.catch (fn [err]
-                  (swap! state/state assoc :era5-summary {:error (str err)}))))))
+                  (when (= loc (:selected-location @state/state))
+                    (swap! state/state assoc :era5-summary {:error (str err)})))))))
 
 (defonce era5-summary-watch
   ;; Whenever the selected location changes, (re)load the ERA5 summary for
