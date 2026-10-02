@@ -10,6 +10,8 @@
            markdown-clj/markdown-clj      {:mvn/version "1.12.10"}
            reagent/reagent                {:mvn/version "2.0.1"}
            ring/ring-core                 {:mvn/version "1.15.5"}
+           ring/ring-headers              {:mvn/version "0.4.0"}
+           ring/ring-ssl                  {:mvn/version "0.4.0"}
            techascent/tech.ml.dataset     {:mvn/version "8.026"}}
  :aliases {:shadow-cljs {:extra-deps {thheller/shadow-cljs {:mvn/version "3.5.4"}}}
            :dev         {:extra-paths ["dev"]

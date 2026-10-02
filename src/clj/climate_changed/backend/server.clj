@@ -2,7 +2,7 @@
   (:require
    [bidi.ring :refer [make-handler]]
    [climate-changed.backend.handlers :as h]
-   [climate-changed.backend.middleware :refer [wrap-edn-response wrap-gzip-middleware]]
+   [climate-changed.backend.middleware :refer [wrap-edn-response wrap-gzip-middleware wrap-security-headers]]
    [ring.middleware.content-type :refer [wrap-content-type]]
    [ring.middleware.not-modified :refer [wrap-not-modified]]
    [ring.middleware.params :refer [wrap-params]]))
@@ -30,6 +30,7 @@
   "The ring middleware stack around the routes."
   []
   (-> (routes-or-resources)
+      wrap-security-headers
       wrap-edn-response
       wrap-params
       wrap-content-type

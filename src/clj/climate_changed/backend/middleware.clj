@@ -1,7 +1,9 @@
 (ns climate-changed.backend.middleware
   (:require
    [clojure.java.io :as io]
-   [clojure.string :as str])
+   [clojure.string :as str]
+   [ring.middleware.ssl :refer [wrap-hsts]]
+   [ring.middleware.x-headers :refer [wrap-content-type-options wrap-frame-options]])
   (:import
    [java.io ByteArrayOutputStream File InputStream]
    [java.nio.charset StandardCharsets]
@@ -99,3 +101,32 @@
         (gzip-response response)
         response))))
 
+(defn wrap-referrer-policy
+  "Adds a `Referrer-Policy` header. No Ring built-in exists for this one.
+  `strict-origin-when-cross-origin` is the modern browser default and keeps
+  the full path only on same-origin requests."
+  [handler]
+  (fn [request]
+    (some-> (handler request)
+            (assoc-in [:headers "Referrer-Policy"] "strict-origin-when-cross-origin"))))
+
+(defn wrap-security-headers
+  "Adds baseline security headers to every response.
+
+  Deliberately does NOT set a Content-Security-Policy: the app is public and
+  read-only, and a restrictive CSP would break shadow-cljs dev/hot-reload and
+  require allowlisting MapLibre's blob workers plus external tile/glyph/sprite
+  hosts. That is a separate, opt-in hardening task.
+
+  Sets:
+
+  - `Strict-Transport-Security` (1 year, includeSubDomains)
+  - `X-Frame-Options: DENY` (the non-CSP equivalent of `frame-ancestors 'none'`)
+  - `X-Content-Type-Options: nosniff`
+  - `Referrer-Policy: strict-origin-when-cross-origin`"
+  [handler]
+  (-> handler
+      (wrap-hsts {:max-age 31536000 :include-subdomains? true})
+      (wrap-frame-options :deny)
+      (wrap-content-type-options :nosniff)
+      wrap-referrer-policy))
