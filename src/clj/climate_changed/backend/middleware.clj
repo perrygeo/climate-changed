@@ -116,6 +116,26 @@
   [start-nanos]
   (quot (- (System/nanoTime) start-nanos) 1000000))
 
+(defn- client-ip
+  "Best-effort client IP when running behind CloudFront.
+
+  Prefers `CloudFront-Viewer-Address` (set by CloudFront; can't be spoofed by
+  the client) when it's forwarded. Otherwise uses the right-most value of
+  `X-Forwarded-For` — CloudFront appends the viewer IP to the end of whatever
+  the client sent, so the last hop is the real client. Falls back to Ring's
+  `:remote-addr` (the CloudFront edge IP in prod, the real client in dev)."
+  [{:keys [headers remote-addr]}]
+  (or (some-> (get headers "cloudfront-viewer-address")
+              (str/split #":" 2)
+              first
+              not-empty)
+      (some-> (get headers "x-forwarded-for")
+              (str/split #",")
+              last
+              str/trim
+              not-empty)
+      remote-addr))
+
 (defn wrap-request-logging
   "Logs every HTTP request: method, URI (with query string), response status,
   and elapsed milliseconds. Runs as the outermost middleware so it also covers
@@ -125,14 +145,15 @@
     (fn [{:keys [request-method uri query-string] :as request}]
       (let [start  (System/nanoTime)
             method (-> request-method name str/upper-case)
-            target (if query-string (str uri "?" query-string) uri)]
+            target (if query-string (str uri "?" query-string) uri)
+            ip     (client-ip request)]
         (try
           (let [response (handler request)]
-            (.info logger (str method " " target " -> " (:status response)
+            (.info logger (str ip " " method " " target " -> " (:status response)
                                " (" (elapsed-ms start) " ms)"))
             response)
           (catch Throwable t
-            (.error logger (str method " " target " -> 500 (" (elapsed-ms start)
+            (.error logger (str ip " " method " " target " -> 500 (" (elapsed-ms start)
                                 " ms) " (.getMessage t)))
             (throw t)))))))
 
