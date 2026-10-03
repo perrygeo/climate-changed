@@ -22,7 +22,6 @@ dev:
 	@echo "Running dev REPL ... see 'dev/user.clj' for instructions"
 	PORT=8081 clojure -M:dev
 
-
 clean:
 	rm -rf ./target
 	rm -rf ./resources/public/js/
@@ -76,6 +75,8 @@ deploy:
 
 infra:
 	eval "$$(aws configure export-credentials --format env)" && cd infra/terraform && terraform apply
+    $(SSH) "nix-collect-garbage -d" # " && nix-store --optimise"
+
 release-client:
 	npx shadow-cljs release app
 
@@ -92,3 +93,8 @@ release-era5-timeseries:
 
 logs:
 	$(SSH) "journalctl -u climate-changed.service -f"
+
+# everything to test, build and push to production... except infra
+# it ain't continuous but it's more reliable than github actions
+integrate-and-deliver: check test clean release deploy
+	@echo "`make logs` to tail server logs"
