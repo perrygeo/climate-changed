@@ -3,7 +3,7 @@
             [clojure.test :refer [deftest is testing]]))
 
 (deftest appname-test
-  (is (= "Climate, changed" shared/appname)))
+  (is (= "Climate changed" shared/appname)))
 
 (deftest styles-test
   (testing "styles is a non-empty vector of garden data"

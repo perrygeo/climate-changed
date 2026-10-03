@@ -1,6 +1,8 @@
 # Trends in the weather since 1940
 
-[Explore our changing climate](/map)
+[  🌐 Explore our changing climate](/map)
+
+**Work in progress, enjoy the public preview while we work out the bugs.**
 
 While much of the climate focus is rightly on present day challenges and future climate projections,
 this project puts the spotlight on the recent past.
@@ -25,6 +27,6 @@ we can have more productive climate conversations on strategies to mitigate and 
 
 ## Data Sources
 
-Icechunk ERA5 was accessed from https://registry.opendata.aws/earthmover-era5.
+Icechunk ERA5 was accessed from [https://registry.opendata.aws/earthmover-era5](https://registry.opendata.aws/earthmover-era5).
 
-> This dataset was generated using Copernicus Climate Change Service information 2026. Copernicus Climate Change Service, Climate Data Store, (2023): ERA5 hourly data on single levels from 1940 to present. Copernicus Climate Change Service (C3S) Climate Data Store (CDS). DOI: https://doi.org/10.24381/cds.adbb2d47 (Accessed in 2026). Copernicus Climate Change Service, Climate Data Store, (2023): ERA5 hourly data on pressure levels from 1940 to present. Copernicus Climate Change Service (C3S) Climate Data Store (CDS). DOI: https://doi.org/10.24381/cds.bd0915c6 (Accessed in 2026). Historical backfill from the NSF NCAR Curated ERA5 archive: European Centre for Medium-Range Weather Forecasts. 2019, updated monthly. ERA5 Reanalysis (0.25 Degree Latitude-Longitude Grid). Research Data Archive at the National Center for Atmospheric Research, Computational and Information Systems Laboratory. https://doi.org/10.5065/BH6N-5N20.
+> *This dataset was generated using Copernicus Climate Change Service information 2026. Copernicus Climate Change Service, Climate Data Store, (2023): ERA5 hourly data on single levels from 1940 to present. Copernicus Climate Change Service (C3S) Climate Data Store (CDS). DOI: https://doi.org/10.24381/cds.adbb2d47 (Accessed in 2026). Copernicus Climate Change Service, Climate Data Store, (2023): ERA5 hourly data on pressure levels from 1940 to present. Copernicus Climate Change Service (C3S) Climate Data Store (CDS). DOI: https://doi.org/10.24381/cds.bd0915c6 (Accessed in 2026). Historical backfill from the NSF NCAR Curated ERA5 archive: European Centre for Medium-Range Weather Forecasts. 2019, updated monthly. ERA5 Reanalysis (0.25 Degree Latitude-Longitude Grid). Research Data Archive at the National Center for Atmospheric Research, Computational and Information Systems Laboratory. https://doi.org/10.5065/BH6N-5N20.*
