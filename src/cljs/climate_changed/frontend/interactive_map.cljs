@@ -16,6 +16,7 @@
 (def satellite-style
   ; A Sentinel-2 cloudless raster basemap proxied through the `:tiles-s2cloudless` route.
   {:version 8
+   :glyphs  "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf"
    :sources {:satellite {:type        "raster"
                          :tiles       [(bidi/path-for routes/routes :tiles-s2cloudless
                                                       :z "{z}" :y "{y}" :x "{x}")]
@@ -29,6 +30,8 @@
 (def locations-layer-id "locations-layer")
 
 (def locations-hitbox-layer-id "locations-hitbox")
+
+(def locations-label-layer-id "locations-label")
 
 (defn coords-to-maplibre [p]
   (clj->js {:lng (:longitude p)
@@ -74,14 +77,16 @@
     (set! (.-cursor (.-style canvas)) cursor)))
 
 (defn- register-layer-events!
-  "Register maplibre event listeners for the locations hitbox layer on `m`:
-  click selects a location; mouseenter/leave toggle a pointer cursor. The
-  hitbox layer is invisible but larger than the visible circle, giving a
-  bigger click/hover target without changing the point's appearance."
+  "Register maplibre event listeners for the locations hitbox and label
+  layers on `m`: click selects a location; mouseenter/leave toggle a pointer
+  cursor. The hitbox layer is invisible but larger than the visible circle,
+  giving a bigger click/hover target without changing the point's appearance;
+  the label layer is registered too so clicking a location's name works."
   [^js m]
-  (.on m "click" locations-hitbox-layer-id layer-click-handler)
-  (.on m "mouseenter" locations-hitbox-layer-id (fn [_] (set-map-cursor! m "pointer")))
-  (.on m "mouseleave" locations-hitbox-layer-id (fn [_] (set-map-cursor! m ""))))
+  (doseq [layer-id [locations-hitbox-layer-id locations-label-layer-id]]
+    (.on m "click" layer-id layer-click-handler)
+    (.on m "mouseenter" layer-id (fn [_] (set-map-cursor! m "pointer")))
+    (.on m "mouseleave" layer-id (fn [_] (set-map-cursor! m "")))))
 
 (defonce locations-layer-events-watch
   ;; Once the maplibre Map is available in `state/map-ref`, attach the layer
@@ -122,13 +127,26 @@
     [cartoj/layer {:id     locations-layer-id
                    :type   "circle"
                    :source "locations"
-                   ;; Scale point radius with zoom: ~2px at globe view, ~6px when flown in.
                    :paint  {:circle-radius       ["interpolate" ["linear"] ["zoom"]
                                                   2 2
-                                                  7.5 6]
-                            :circle-color        "#66f4"
-                            :circle-stroke-width 1
-                            :circle-stroke-color "#fff3"}}]
+                                                  7.5 9]
+                            :circle-color        "#ddffdd77"
+                            :circle-stroke-width 1.0
+                            :circle-stroke-color "#141414"}}]
+    [cartoj/layer {:id      locations-label-layer-id
+                   :type    "symbol"
+                   :source  "locations"
+                   :minzoom 3
+                   :layout  {:text-field  ["get" "name"]
+                             :text-font   ["Open Sans Semibold"]
+                             :text-size   ["interpolate" ["linear"] ["zoom"]
+                                           3 10
+                                           7.5 12]
+                             :text-anchor "top"
+                             :text-offset [0 1.2]}
+                   :paint   {:text-color      "#ffffff"
+                             :text-halo-color "#0b0b0b"
+                             :text-halo-width 1.0}}]
     [cartoj/layer {:id     locations-hitbox-layer-id
                    :type   "circle"
                    :source "locations"
