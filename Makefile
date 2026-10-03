@@ -101,4 +101,4 @@ logs:
 # everything to test, build and push to production... except infra
 # it ain't continuous but it's more reliable than github actions
 integrate-and-deliver: check test clean release deploy
-	@echo "`make logs` to tail server logs"
+	@echo "'make logs' to tail server logs"

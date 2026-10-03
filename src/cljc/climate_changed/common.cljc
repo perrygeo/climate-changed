@@ -1,7 +1,7 @@
 (ns climate-changed.common
   (:require [garden.stylesheet :refer [at-media]]))
 
-(def appname "Climate, changed")
+(def appname "Climate changed")
 
 (def default-style
   ;; Compiled to CSS by the client at startup (see climate-changed.frontend.main/init).
