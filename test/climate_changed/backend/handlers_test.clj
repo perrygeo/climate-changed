@@ -60,6 +60,36 @@
       (is (thrown? clojure.lang.ExceptionInfo
                    (handlers/era5-summary-handler {:route-params {:row "10" :col "20"}}))))))
 
+(deftest tiles-s2cloudless-handler-test
+  (testing "rejects non-integer params"
+    (is (= 400 (:status (handlers/tiles-s2cloudless-handler {:route-params {}}))))
+    (is (= 400 (:status (handlers/tiles-s2cloudless-handler {:route-params {:z "a" :y "0" :x "0"}})))))
+
+  (testing "rejects out-of-range tiles"
+    (is (= 404 (:status (handlers/tiles-s2cloudless-handler {:route-params {:z "19" :y "0" :x "0"}}))))
+    (is (= 404 (:status (handlers/tiles-s2cloudless-handler {:route-params {:z "2" :y "4" :x "0"}})))))
+
+  (testing "returns 502 when the upstream tile is unavailable"
+    (with-redefs [handlers/fetch-tile (fn [_ _ _] nil)]
+      (let [resp (handlers/tiles-s2cloudless-handler {:route-params {:z "0" :y "0" :x "0"}})]
+        (is (= 502 (:status resp)))
+        (is (= "upstream tile unavailable"
+               (:error (json/parse-string (:body resp) true)))))))
+
+  (testing "proxies upstream tiles and serves subsequent requests from cache"
+    (let [k [1 0 0]]
+      (with-redefs [handlers/fetch-tile (fn [z y x]
+                                          (when (= [z y x] k)
+                                            (byte-array [(byte 1) (byte 2)])))]
+        (let [resp (handlers/tiles-s2cloudless-handler {:route-params {:z "1" :y "0" :x "0"}})]
+          (is (= 200 (:status resp)))
+          (is (= "image/jpeg" (get-in resp [:headers "Content-Type"])))
+          (is (= "public, max-age=604800" (get-in resp [:headers "Cache-Control"])))
+          (is (some? ((var handlers/cache-get) k)))
+          ;; second request is served from cache without another upstream fetch
+          (is (= 200 (:status (handlers/tiles-s2cloudless-handler
+                               {:route-params {:z "1" :y "0" :x "0"}})))))))))
+
 ;; future ideas:
 ;; - location-stats-handler: with-redefs loc/n-locations and loc/n-locations-with-ts
 ;;   to assert {:n :complete :pct} (including the nil pct when n is zero).

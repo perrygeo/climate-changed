@@ -11,6 +11,21 @@
 
 (def dark-style  "/styles/dark.json")
 
+(def ^:private s2cloudless-max-zoom 18)
+
+(def satellite-style
+  ; A Sentinel-2 cloudless raster basemap proxied through the `:tiles-s2cloudless` route.
+  {:version 8
+   :sources {:satellite {:type        "raster"
+                         :tiles       [(bidi/path-for routes/routes :tiles-s2cloudless
+                                                      :z "{z}" :y "{y}" :x "{x}")]
+                         :tile-size   256
+                         :maxzoom     s2cloudless-max-zoom
+                         :attribution "Sentinel-2 cloudless by EOX IT Services GmbH (contains modified Copernicus Sentinel data)"}}
+   :layers  [{:id     "satellite"
+              :type   "raster"
+              :source "satellite"}]})
+
 (def locations-layer-id "locations-layer")
 
 (def locations-hitbox-layer-id "locations-hitbox")
@@ -84,15 +99,13 @@
   (when-let [^js m @state/map-ref]
     (.setProjection m (clj->js {:type "globe"}))))
 
-(defn watch-color-scheme!
-  "Set the `:map-style` state key from the OS dark/light preference,
-  updating on change."
+(defn set-default-map-style!
+  "Set the default `:map-style` to satellite imagery on startup. The
+  Sentinel-2 cloudless raster basemap is used regardless of the OS
+  color-scheme preference; `dark-style` and `light-style` remain available
+  for future style switching."
   []
-  (let [mql        (.matchMedia js/window "(prefers-color-scheme: dark)")
-        set-style! (fn [^js m]
-                     (swap! state/state assoc :map-style (if (.-matches m) dark-style light-style)))]
-    (set-style! mql)
-    (.addEventListener mql "change" set-style!)))
+  (swap! state/state assoc :map-style satellite-style))
 
 (defn locations-map
   "Render the interactive globe map with the locations GeoJSON source"

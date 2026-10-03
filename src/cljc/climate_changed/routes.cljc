@@ -16,9 +16,10 @@
 
 (def routes
   "Named application routes, constrained to HTTP GET."
-  ["/" {""                                  (get-only :home)
-        "map"                               (get-only :map)
-        "healthz"                           (get-only :healthz)
-        "api/locations/stats"               (get-only :location-stats)
-        ["api/era5-summary/" :row "/" :col] (get-only :era5-summary)
-        "api/locations"                     (get-only :locations)}])
+  ["/" {"" (get-only :home)
+        "map"                                   (get-only :map)
+        "healthz"                               (get-only :healthz)
+        "api/locations/stats"                   (get-only :location-stats)
+        ["tiles/s2cloudless/" :z "/" :y "/" :x] (get-only :tiles-s2cloudless)
+        ["api/era5-summary/" :row "/" :col]     (get-only :era5-summary)
+        "api/locations"                         (get-only :locations)}])

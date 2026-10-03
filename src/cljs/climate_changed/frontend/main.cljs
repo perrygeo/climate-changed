@@ -32,7 +32,7 @@
   "Runs on application startup and every browser refresh."
   []
   (reset! root (rdom/create-root (js/document.getElementById "app")))
-  (imap/watch-color-scheme!)
+  (imap/set-default-map-style!)
   (re-render)
   (app/fetch-locations!)
   (app/fetch-location-stats!))

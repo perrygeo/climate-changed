@@ -17,6 +17,7 @@
    :location-stats     #'h/location-stats-handler
    :healthz            #'h/healthz-handler
    :era5-summary       #'h/era5-summary-handler
+   :tiles-s2cloudless  #'h/tiles-s2cloudless-handler
    :locations          #'h/locations-handler
    :method-not-allowed #'h/method-not-allowed-handler})
 
