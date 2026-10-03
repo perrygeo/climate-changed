@@ -2,6 +2,7 @@
   (:require
    [cheshire.core :as json]
    [climate-changed.backend.location-index :as loc]
+   [climate-changed.backend.tile-cache :as tile-cache]
    [climate-changed.common :as s]
    [climate-changed.era5.grid :as grid]
    [climate-changed.era5.summary :as summary]
@@ -10,11 +11,7 @@
    [garden.core :as garden]
    [markdown.core :as md]
    [ring.middleware.resource :refer [wrap-resource]]
-   [ring.util.response :as resp])
-  (:import
-   [java.net URI]
-   [java.net.http HttpClient HttpRequest]
-   [java.time Duration]))
+   [ring.util.response :as resp]))
 
 (set! *warn-on-reflection* true)
 
@@ -134,90 +131,6 @@
        :headers {"Content-Type" "application/json"}
        :body    (json/generate-string {:error "row and col must be integers"})})))
 
-(comment
-  (era5-summary-handler {:route-params {:row "10" :col "10"}})
-  ;; {:status 500,
-  ;;  :headers {"Content-Type" "application/json"},
-  ;;  :body "{\"error\":\"no locations in grid cell\"}"}
-
-  (era5-summary-handler {:route-params {:row "201" :col "1020"}})
-  ;; {:status 200,
-  ;;  :headers {"Content-Type" "application/json"},
-  ;;  :body "..."}
-  )
-
-(def ^:private s2cloudless-tile-url
-  "Upstream tile URL template for the EOX Sentinel-2 cloudless WMTS. Note the
-  z/y/x ordering (WMTS row/column order, unlike the x/y/z of XYZ tiles)."
-  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/%d/%d/%d.jpg")
-
-(def ^:private s2cloudless-max-zoom 18)
-
-(defonce ^:private tile-cache
-  ;; In-memory cache of proxied Sentinel-2 tiles, keyed by [z y x].
-  (atom {}))
-
-(def ^:private tile-cache-max-entries 4096)
-
-(def ^:private tile-cache-ttl-ms
-  "Tiles are immutable, so cache them for a week in-process; CloudFront may
-  add another cache layer in front in production."
-  (* 7 24 60 60 1000))
-
-(defn- cache-get
-  "Return cached tile bytes for key `k`, or nil when absent or expired."
-  [k]
-  (when-let [{:keys [expires-at bytes]} (get @tile-cache k)]
-    (when (< (System/currentTimeMillis) expires-at)
-      bytes)))
-
-(defn- cache-evict
-  "Trim `cache` to at most `tile-cache-max-entries`, dropping expired entries
-  first, then the least-recently-cached."
-  [cache]
-  (let [now  (System/currentTimeMillis)
-        live (into {} (remove (fn [[_ {:keys [expires-at]}]] (<= expires-at now)))
-                   cache)]
-    (if (<= (count live) tile-cache-max-entries)
-      live
-      (let [keep (->> live
-                      (sort-by (comp :cached-at val))
-                      (take-last tile-cache-max-entries)
-                      (map key)
-                      set)]
-        (select-keys live keep)))))
-
-(defn- cache-put!
-  "Store `bytes` under key `k`, evicting old entries when at capacity."
-  [k bytes]
-  (swap! tile-cache
-         (fn [cache]
-           (let [now   (System/currentTimeMillis)
-                 cache (if (>= (count cache) tile-cache-max-entries)
-                         (cache-evict cache)
-                         cache)]
-             (assoc cache k {:bytes      bytes
-                             :cached-at  now
-                             :expires-at (+ now tile-cache-ttl-ms)})))))
-
-(def ^:private http-client
-  (delay (HttpClient/newHttpClient)))
-
-(defn- fetch-tile
-  "Fetch the EOX Sentinel-2 tile at [z y x], returning its bytes or nil when
-  upstream responds non-200 or the request fails."
-  ^bytes [z y x]
-  (try
-    (let [url  (format s2cloudless-tile-url (long z) (long y) (long x))
-          req  (-> (HttpRequest/newBuilder (URI/create url))
-                   (.timeout (Duration/ofSeconds 30))
-                   (.header "User-Agent" "climate-changed")
-                   (.build))
-          resp (.send ^HttpClient @http-client req (java.net.http.HttpResponse$BodyHandlers/ofByteArray))]
-      (when (= 200 (.statusCode resp))
-        (.body resp)))
-    (catch Exception _ nil)))
-
 (defn tiles-s2cloudless-handler
   "Proxy Sentinel-2 cloudless satellite tiles from EOX through the
   `:tiles-s2cloudless` route, with an in-memory cache. Validates z/y/x so
@@ -233,7 +146,7 @@
        :headers {"Content-Type" "application/json"}
        :body    (json/generate-string {:error "z, y, and x must be integers"})}
 
-      (or (neg? z) (> z s2cloudless-max-zoom)
+      (or (neg? z) (> z tile-cache/s2cloudless-max-zoom)
           (neg? y) (>= y n-tiles)
           (neg? x) (>= x n-tiles))
       {:status  404
@@ -242,9 +155,9 @@
 
       :else
       (let [k     [z y x]
-            bytes (or (cache-get k)
-                      (when-let [b (fetch-tile z y x)]
-                        (cache-put! k b)
+            bytes (or (tile-cache/cache-get k)
+                      (when-let [b (tile-cache/fetch-tile z y x)]
+                        (tile-cache/cache-put! k b)
                         b))]
         (if bytes
           {:status  200
@@ -253,4 +166,20 @@
            :body    bytes}
           {:status  502
            :headers {"Content-Type" "application/json"}
-           :body    (json/generate-string {:error "upstream tile unavailable"})})))))
+           :body    (json/generate-string {:error "upstream service unavailable"})})))))
+
+(comment
+  (era5-summary-handler {:route-params {:row "10" :col "10"}})
+  ;; {:status 500,
+  ;;  :headers {"Content-Type" "application/json"},
+  ;;  :body "{\"error\":\"no locations in grid cell\"}"}
+
+  (era5-summary-handler {:route-params {:row "201" :col "1020"}})
+  ;; {:status 200,
+  ;;  :headers {"Content-Type" "application/json"},
+  ;;  :body "..."}
+
+  (tiles-s2cloudless-handler {:route-params {:z "0" :y "0" :x "0"}})
+  ;; check the cache
+  tile-cache/current-cache-size-mb)
+

@@ -2,6 +2,7 @@
   (:require [cheshire.core :as json]
             [climate-changed.backend.handlers :as handlers]
             [climate-changed.backend.location-index :as loc]
+            [climate-changed.backend.tile-cache :as tile-cache]
             [climate-changed.era5.grid :as grid]
             [climate-changed.era5.summary :as summary]
             [clojure.test :refer [deftest is testing]]))
@@ -70,22 +71,24 @@
     (is (= 404 (:status (handlers/tiles-s2cloudless-handler {:route-params {:z "2" :y "4" :x "0"}})))))
 
   (testing "returns 502 when the upstream tile is unavailable"
-    (with-redefs [handlers/fetch-tile (fn [_ _ _] nil)]
+    (with-redefs [tile-cache/cache-get  (fn [_] nil)
+                  tile-cache/fetch-tile (fn [_ _ _] nil)]
       (let [resp (handlers/tiles-s2cloudless-handler {:route-params {:z "0" :y "0" :x "0"}})]
         (is (= 502 (:status resp)))
-        (is (= "upstream tile unavailable"
+        (is (= "upstream service unavailable"
                (:error (json/parse-string (:body resp) true)))))))
 
   (testing "proxies upstream tiles and serves subsequent requests from cache"
     (let [k [1 0 0]]
-      (with-redefs [handlers/fetch-tile (fn [z y x]
-                                          (when (= [z y x] k)
-                                            (byte-array [(byte 1) (byte 2)])))]
+      (reset! tile-cache/tile-cache {})
+      (with-redefs [tile-cache/fetch-tile (fn [z y x]
+                                            (when (= [z y x] k)
+                                              (byte-array [(byte 1) (byte 2)])))]
         (let [resp (handlers/tiles-s2cloudless-handler {:route-params {:z "1" :y "0" :x "0"}})]
           (is (= 200 (:status resp)))
           (is (= "image/jpeg" (get-in resp [:headers "Content-Type"])))
           (is (= "public, max-age=604800" (get-in resp [:headers "Cache-Control"])))
-          (is (some? ((var handlers/cache-get) k)))
+          (is (some? (tile-cache/cache-get k)))
           ;; second request is served from cache without another upstream fetch
           (is (= 200 (:status (handlers/tiles-s2cloudless-handler
                                {:route-params {:z "1" :y "0" :x "0"}})))))))))
