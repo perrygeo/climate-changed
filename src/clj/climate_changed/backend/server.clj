@@ -16,7 +16,6 @@
    :map                #'h/spa-handler
    :location-stats     #'h/location-stats-handler
    :healthz            #'h/healthz-handler
-   :hello              #'h/hello-handler
    :era5-summary       #'h/era5-summary-handler
    :locations          #'h/locations-handler
    :method-not-allowed #'h/method-not-allowed-handler})

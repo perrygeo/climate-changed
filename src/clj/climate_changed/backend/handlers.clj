@@ -50,11 +50,6 @@
               :complete n-with-ts
               :pct      pct}}))
 
-(defn hello-handler
-  [_req]
-  {:status 200
-   :body   {:message (str "Hello from " s/appname "!")}})
-
 (defn spa-handler
   "Serve the map SPA entry point (index.html) at /map."
   [_req]
