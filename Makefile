@@ -15,6 +15,8 @@ default:
 	@echo "  make infra     - ensure AWS resources are configured"
 	@echo "  make release   - build the release uberjar"
 	@echo "  make deploy    - deploy the uberjar to prod"
+	@echo "  make logs      - tail prod logs"
+	@echo "  make integrate-and-deliver - full rollout"
 
 # === Local Development ===
 
@@ -74,8 +76,10 @@ deploy:
 	echo "Deployed $$BASENAME and restarted climate-changed."
 
 infra:
-	eval "$$(aws configure export-credentials --format env)" && cd infra/terraform && terraform apply
-    $(SSH) "nix-collect-garbage -d" # " && nix-store --optimise"
+	eval "$$(aws configure export-credentials --format env)" &&  \
+	  cd infra/terraform && \
+	  terraform apply && \
+      $(SSH) "nix-collect-garbage -d"
 
 release-client:
 	npx shadow-cljs release app
