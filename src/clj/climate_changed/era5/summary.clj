@@ -2,6 +2,7 @@
   (:require
    [climate-changed.era5.fetch :as fetch]
    [climate-changed.era5.grid :as grid]
+   [climate-changed.era5.perf :as perf]
    [climate-changed.era5.variables :as vars]
    [tech.v3.dataset :as ds]))
 
@@ -70,12 +71,15 @@
   (when-not (vars/valid-varname? varname)
     (throw (ex-info (str "Unknown ERA5 variable: " varname)
                     {:status 400 :varname varname})))
-  (let [data              (fetch/fetch-ts varname row col)
-        {:keys [lat lon]} (grid/cell-center row col)]
-    {:row     row
-     :col     col
-     :lat     lat
-     :lon     lon
-     :var     varname
-     :units   (get-in vars/era5-variables [(keyword varname) :units])
-     :periods (mapv #(period-stats data varname %) climate-periods)}))
+  (perf/timed :summary-total [[:varname varname] [:row row] [:col col]]
+              (let [data              (perf/timed :fetch-ts [[:varname varname] [:row row] [:col col]]
+                                                  (fetch/fetch-ts varname row col))
+                    {:keys [lat lon]} (grid/cell-center row col)]
+                {:row     row
+                 :col     col
+                 :lat     lat
+                 :lon     lon
+                 :var     varname
+                 :units   (get-in vars/era5-variables [(keyword varname) :units])
+                 :periods (perf/timed :stats-compute [[:n-periods (count climate-periods)]]
+                                      (mapv #(period-stats data varname %) climate-periods))})))

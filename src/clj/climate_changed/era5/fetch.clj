@@ -1,6 +1,7 @@
 (ns climate-changed.era5.fetch
   (:require
    [climate-changed.era5.grid :as grid]
+   [climate-changed.era5.perf :as perf]
    [clojure.java.io :as io]
    [clojure.string :as str]
    [clojure.tools.logging :as log]
@@ -131,7 +132,9 @@
           ;; Query the Icechunk repository on S3 and cache to permanent storage
           (log/info (str "Fetching ERA5 timeseries for " varname " " row " " col))
           (let [cmd                    (era-download-cmd varname row col)
-                {:keys [out err exit]} (run-cmd cmd)]
+                {:keys [out err exit]} (perf/timed :fetch-s3
+                                                   [[:varname varname] [:row row] [:col col]]
+                                                   (run-cmd cmd))]
             (when (seq err) (binding [*out* *err*] (print err)))
             (when-not (zero? exit)
               (throw (ex-info "Command failed" {:exit exit :out out :err err :cmd cmd})))
@@ -139,9 +142,10 @@
         (finally
           (release-fetch! varname row col))))
     ;; Read from permanent storage and return a clean dataset
-    (->
-     (pq/parquet->ds parquet-path)
-     (fix-valid-time))))
+    (perf/timed :parquet-read
+                [[:cached (boolean exists?)] [:path parquet-path]]
+                (-> (pq/parquet->ds parquet-path)
+                    (fix-valid-time)))))
 
 (comment ;; interactive test of fetch-ts
   (time (let [{:keys [row col]} (grid/snap-coords -105.0844 40.5853)

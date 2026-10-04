@@ -174,10 +174,20 @@
   ;;  :headers {"Content-Type" "application/json"},
   ;;  :body "{\"error\":\"no locations in grid cell\"}"}
 
-  (era5-summary-handler {:route-params {:row "201" :col "1020"}})
+  (time
+   (era5-summary-handler {:route-params {:row "201" :col "1020"}}))
   ;; {:status 200,
   ;;  :headers {"Content-Type" "application/json"},
   ;;  :body "..."}
+  ;; Typically takes ~200ms locally.
+  ;; But on production, here's 3 timings for full round trip https to home computer
+  ;; server was quiet and the requests were separated by few seconds
+  ;; 3550ms, 2297ms, 1541ms
+  ;; significantly slower on production!
+  ;; what might be the root cause?
+  ;; - t3.small is 2 underpowered cpus?
+  ;; - zerofs-to-s3 fetching?
+  ;; TODO research and write up a brief summary
 
   (tiles-s2cloudless-handler {:route-params {:z "0" :y "0" :x "0"}})
   ;; check the cache
