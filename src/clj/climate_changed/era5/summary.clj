@@ -83,7 +83,6 @@
   (let [data              (fetch/fetch-ts varname row col)
         {:keys [lat lon]} (grid/cell-center row col)
         by-decade         (decade-stats data varname)]
-    (tap> by-decade)
     {:row     row
      :col     col
      :lat     lat
