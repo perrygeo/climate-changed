@@ -21,41 +21,47 @@
                             (.atZone ^java.time.Instant (:start p) java.time.ZoneOffset/UTC)
                             (.atZone ^java.time.Instant (:end p) java.time.ZoneOffset/UTC))))))))
 
-(deftest in-period-test
-  (let [in-period? #'summary/in-period?
-        t0         (java.time.Instant/parse "1940-01-01T00:00:00Z")
-        t1         (java.time.Instant/parse "1945-01-01T00:00:00Z")
-        t2         (java.time.Instant/parse "1950-01-01T00:00:00Z")]
-    (testing "start is inclusive and end is exclusive"
-      (is (in-period? t0 t0 t2))
-      (is (not (in-period? t2 t0 t2))))
-    (testing "nil end means unbounded"
-      (is (in-period? t1 t0 nil))
-      (is (not (in-period? t0 t1 nil))))
-    (testing "instants outside [start end) are rejected"
-      (is (not (in-period? t0 t1 t2)))
-      (is (not (in-period? t2 t0 t1))))))
+(deftest decade-start-year-test
+  (let [decade-start-year #'summary/decade-start-year]
+    (testing "buckets instants into their UTC decade start year"
+      (is (= 1940 (decade-start-year (java.time.Instant/parse "1940-01-01T00:00:00Z"))))
+      (is (= 1940 (decade-start-year (java.time.Instant/parse "1949-12-31T23:59:59Z"))))
+      (is (= 1950 (decade-start-year (java.time.Instant/parse "1950-01-01T00:00:00Z"))))
+      (is (= 2020 (decade-start-year (java.time.Instant/parse "2024-06-01T00:00:00Z")))))))
 
 (deftest period-stats-test
   (let [period-stats #'summary/period-stats
+        data         (ds/->dataset {"valid_time" [(java.time.Instant/parse "1940-01-01T00:00:00Z")
+                                                  (java.time.Instant/parse "1941-01-01T00:00:00Z")]
+                                    "t2m"        [280.0 281.0]})
+        stats        (period-stats data "t2m")]
+    (testing "computes descriptive statistics for the varname column"
+      (is (= 2 (:n stats)))
+      (is (= 280.0 (:min stats)))
+      (is (= 280.5 (:mean stats)))
+      (is (= 281.0 (:max stats)))
+      (is (< 0.7 (:sd stats) 0.8)))
+    (testing "start and end are stringified from valid_time bounds"
+      (is (= "1940-01-01T00:00:00Z" (:start stats)))
+      (is (= "1941-01-01T00:00:00Z" (:end stats))))))
+
+(deftest decade-stats-test
+  (let [decade-stats #'summary/decade-stats
         data         (ds/->dataset {"valid_time" [(java.time.Instant/parse "1940-01-01T00:00:00Z")
                                                   (java.time.Instant/parse "1941-01-01T00:00:00Z")
                                                   (java.time.Instant/parse "1950-06-01T00:00:00Z")
                                                   (java.time.Instant/parse "2024-06-01T00:00:00Z")]
                                     "t2m"        [280.0 281.0 282.0 283.0]})
-        period       {:start (java.time.Instant/parse "1940-01-01T00:00:00Z")
-                      :end   (java.time.Instant/parse "1950-01-01T00:00:00Z")}
-        stats        (period-stats data "t2m" period)]
-    (testing "restricts the dataset to rows in [start end)"
-      (is (= 2 (:n stats))))
-    (testing "computes descriptive statistics for the varname column"
-      (is (= 280.0 (:min stats)))
-      (is (= 280.5 (:mean stats)))
-      (is (= 281.0 (:max stats)))
-      (is (< 0.7 (:sd stats) 0.8)))
-    (testing "start and end are stringified from the period's valid_time bounds"
-      (is (= "1940-01-01T00:00:00Z" (:start stats)))
-      (is (= "1941-01-01T00:00:00Z" (:end stats))))))
+        stats        (decade-stats data "t2m")]
+    (testing "groups rows by UTC decade in one pass"
+      (is (= #{1940 1950 2020} (set (keys stats))))
+      (is (= 2 (get-in stats [1940 :n])))
+      (is (= 1 (get-in stats [1950 :n])))
+      (is (= 1 (get-in stats [2020 :n]))))
+    (testing "per-decade stats match the filtered subset"
+      (is (= 280.5 (get-in stats [1940 :mean])))
+      (is (= 282.0 (get-in stats [1950 :mean])))
+      (is (= 283.0 (get-in stats [2020 :mean]))))))
 
 (deftest era5-summary-test
   (testing "rejects unknown varnames with a 400 ex-data"
@@ -71,12 +77,23 @@
                    (summary/era5-summary "t2m" 198 1020))]
       (is (= {:row 198 :col 1020 :lat 40.5 :lon 255.0 :var "t2m" :units "K"}
              (select-keys result [:row :col :lat :lon :var :units])))
-      (is (seq (:periods result)))
-      (is (every? #(and (contains? % :n)
-                        (contains? % :min)
-                        (contains? % :mean)
-                        (contains? % :max)
-                        (contains? % :sd)
-                        (contains? % :start)
-                        (contains? % :end))
-                  (:periods result))))))
+      (is (= (count summary/climate-periods) (count (:periods result))))
+      (testing "observations land in their decade; empty decades stay nil"
+        (let [periods (:periods result)]
+          (is (= 1 (:n (first periods))))
+          (is (= "1940-01-01T00:00:00Z" (:start (first periods))))
+          (is (= 280.0 (:mean (first periods))))
+          (is (= 1 (:n (last periods))))
+          (is (= "2024-06-01T00:00:00Z" (:start (last periods))))
+          (is (= 283.0 (:mean (last periods))))
+          (is (every? (fn [p] (and (nil? (:n p)) (nil? (:start p))))
+                      (butlast (rest periods))))))
+      (testing "every period carries the full stat shape"
+        (is (every? #(and (contains? % :n)
+                          (contains? % :min)
+                          (contains? % :mean)
+                          (contains? % :max)
+                          (contains? % :sd)
+                          (contains? % :start)
+                          (contains? % :end))
+                    (:periods result)))))))

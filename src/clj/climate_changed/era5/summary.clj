@@ -3,7 +3,8 @@
    [climate-changed.era5.fetch :as fetch]
    [climate-changed.era5.grid :as grid]
    [climate-changed.era5.variables :as vars]
-   [tech.v3.dataset :as ds]))
+   [tech.v3.dataset :as ds]
+   [tech.v3.datatype :as dtype]))
 
 (set! *warn-on-reflection* true)
 
@@ -39,21 +40,16 @@
   (some #(when (= (:col-name %) col-name) %)
         (ds/rows (ds/descriptive-stats data))))
 
-(defn- in-period?
-  "True when instant `t` falls within [start end); nil end means unbounded."
-  [^java.time.Instant t ^java.time.Instant start ^java.time.Instant end]
-  (and (not (.isBefore t start))
-       (or (nil? end) (.isBefore t end))))
-
-(defn- period-data
-  "Rows of `data` whose valid_time falls within [start end)."
-  [data start end]
-  (ds/filter data (fn [row] (in-period? (get row "valid_time") start end))))
+(defn- decade-start-year
+  "The UTC decade containing `t`, expressed as its start year, e.g. 2020."
+  ^long [^java.time.Instant t]
+  (let [^java.time.ZonedDateTime zdt (.atZone t java.time.ZoneOffset/UTC)]
+    (long (* 10 (quot (.getYear zdt) 10)))))
 
 (defn- period-stats
-  "Descriptive stats for `varname` restricted to one period."
-  [data varname {:keys [start end]}]
-  (let [subset (period-data data start end)
+  "Descriptive stats for `varname` and `valid_time` over one decade of `data`."
+  [data varname]
+  (let [subset (ds/select-columns data [varname "valid_time"])
         vstats (descriptive-stats-row subset varname)
         tstats (descriptive-stats-row subset "valid_time")]
     {:n     (:n-valid vstats)
@@ -64,6 +60,20 @@
      :start (some-> (:min tstats) str)
      :end   (some-> (:max tstats) str)}))
 
+(defn- decade-stats
+  "Map of decade start year -> `period-stats` for each decade present in
+  `data`, computed in a single group-by pass."
+  [data varname]
+  (let [data (ds/add-or-update-column
+              data "decade"
+              (dtype/emap decade-start-year :int64 (get data "valid_time")))]
+    (ds/group-by-column data "decade"
+                        {:group-by-finalizer #(period-stats % varname)})))
+
+(def ^:private empty-period-stats
+  "Stats for a reference period with no observations."
+  {:n nil :min nil :mean nil :max nil :sd nil :start nil :end nil})
+
 (defn era5-summary
   "Climate summary for a grid cell, broken into reference periods."
   [varname row col]
@@ -71,11 +81,19 @@
     (throw (ex-info (str "Unknown ERA5 variable: " varname)
                     {:status 400 :varname varname})))
   (let [data              (fetch/fetch-ts varname row col)
-        {:keys [lat lon]} (grid/cell-center row col)]
+        {:keys [lat lon]} (grid/cell-center row col)
+        by-decade         (decade-stats data varname)]
+    (tap> by-decade)
     {:row     row
      :col     col
      :lat     lat
      :lon     lon
      :var     varname
      :units   (get-in vars/era5-variables [(keyword varname) :units])
-     :periods (mapv #(period-stats data varname %) climate-periods)}))
+     :periods (mapv (fn [{:keys [start]}]
+                      (get by-decade (decade-start-year start) empty-period-stats))
+                    climate-periods)}))
+
+(comment
+
+  (time (era5-summary "t2m" 203 427)))
