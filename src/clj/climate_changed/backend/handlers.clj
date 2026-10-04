@@ -181,5 +181,5 @@
 
   (tiles-s2cloudless-handler {:route-params {:z "0" :y "0" :x "0"}})
   ;; check the cache
-  tile-cache/current-cache-size-mb)
+  (tile-cache/current-cache-size-mb))
 
