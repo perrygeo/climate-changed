@@ -25,11 +25,38 @@ resource "aws_acm_certificate_validation" "cert" {
 }
 
 ########################################
-# Managed policies: no caching, forward everything to the origin.
+# Cache policy: origin-controlled caching.
+#
+# default_ttl = 0 means CloudFront does NOT cache a response unless the origin
+# explicitly returns Cache-Control / Expires. When the origin does, those
+# headers win (clamped to min/max_ttl). Only the satellite tiles endpoint
+# currently returns a Cache-Control header, so only tiles get cached today.
 ########################################
 
-data "aws_cloudfront_cache_policy" "disabled" {
-  name = "Managed-CachingDisabled"
+resource "aws_cloudfront_cache_policy" "origin_controlled" {
+  name    = "climate-changed-origin-controlled"
+  comment = "No-cache unless the origin sets Cache-Control/Expires."
+
+  min_ttl     = 0
+  default_ttl = 0
+  max_ttl     = 31536000
+
+  parameters_in_cache_key_and_forwarded_to_origin {
+    enable_accept_encoding_gzip   = true
+    enable_accept_encoding_brotli = true
+
+    cookies_config {
+      cookie_behavior = "none"
+    }
+
+    headers_config {
+      header_behavior = "none"
+    }
+
+    query_strings_config {
+      query_string_behavior = "none"
+    }
+  }
 }
 
 data "aws_cloudfront_origin_request_policy" "all_viewer" {
@@ -71,9 +98,10 @@ resource "aws_cloudfront_distribution" "app" {
     allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods  = ["GET", "HEAD"]
 
-    # Caching disabled for now; swap these policies (or set an explicit
-    # min/default/max TTL) once the app is stable to turn caching on.
-    cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
+    # Origin-controlled: default no-cache, but honor Cache-Control/Expires
+    # when the origin sets them. The tiles handler is the only endpoint that
+    # currently returns Cache-Control, so it is the only thing cached.
+    cache_policy_id          = aws_cloudfront_cache_policy.origin_controlled.id
     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
   }
 

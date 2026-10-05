@@ -75,10 +75,11 @@ Usage:
 
 AWS infrastructure is defined with Terraform in [`infra/terraform/`](infra/terraform/README.md):
 
-* EC2 `t3.small` running NixOS (configured by the flake in `infra/flake.nix`),
+* EC2 spot `t3.medium` running NixOS (configured by the flake in `infra/flake.nix`),
   SSH-able as `root`, with an instance profile for S3
 * CloudFront distribution pointing at the EC2 instance on port 9000 - caching is
-  disabled for now but structured to be turned on once the app is stable
+  origin-controlled: only responses whose origin sets `Cache-Control`/`Expires`
+  are cached, which today is only the satellite tiles endpoint
 * S3 bucket to hold the timeseries data
 
 See [`infra/README.md`](infra/terraform/README.md) for how to run

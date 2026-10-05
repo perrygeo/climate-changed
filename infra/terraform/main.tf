@@ -82,6 +82,20 @@ resource "aws_instance" "app" {
   # Allow the instance to read/write the timeseries bucket without static keys.
   iam_instance_profile = aws_iam_instance_profile.app.name
 
+  # Run on the spot market, bidding just above on-demand (see spot_max_price).
+  # interruption_behavior = "stop" + persistent request means an interruption
+  # only stops the instance (keeping its Elastic IP and instance ID); AWS
+  # restarts it automatically when capacity is available again.
+  instance_market_options {
+    market_type = "spot"
+
+    spot_options {
+      max_price                      = var.spot_max_price
+      instance_interruption_behavior = var.spot_interruption_behavior
+      spot_instance_type             = "persistent"
+    }
+  }
+
   root_block_device {
     volume_size = 20
     volume_type = "gp3"

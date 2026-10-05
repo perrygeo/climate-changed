@@ -2,13 +2,16 @@
 
 To create the minimum production infrastructure on AWS,
 
-- **EC2** `t3.small` running the official NixOS AMI, SSH-able as `root`, with
-  an instance profile that can read/write the timeseries bucket. The system is
-  configured by the flake in `../flake.nix`.
+- **EC2** spot `t3.medium` running the official NixOS AMI, SSH-able as `root`,
+  with an instance profile that can read/write the timeseries bucket. The
+  instance is bid on the spot market just above on-demand (see `spot_max_price`)
+  and stops on interruption, restarting automatically when capacity returns. The
+  system is configured by the flake in `../flake.nix`.
 - **S3 bucket** for timeseries data (private, versioned, encrypted).
 - **CloudFront** distribution that forwards to the EC2 instance on port `9000`.
-  Caching is disabled but the distribution is structured so you can turn it on
-  later by swapping the cache policy.
+  Caching is origin-controlled: responses are only cached when the origin sets
+  `Cache-Control`/`Expires`, otherwise they are not cached. Today only the
+  satellite tiles endpoint sets those headers.
 
 Software deployment (CI, systemd units, app packaging) is intentionally out of
 scope. This gets you a NixOS box you can SSH into, run something on port 9000,
@@ -183,12 +186,18 @@ nix-shell -p openjdk25_headless --run 'PORT=9000 java -jar climate-changed-0.1.0
 ---
 
 
-## Turning caching on later
+## Caching
 
-In `cloudfront.tf`, the `default_cache_behavior` uses the managed
-`Managed-CachingDisabled` policy. Replace `cache_policy_id` with a caching
-policy (e.g. `Managed-CachingOptimized`) or a custom `aws_cloudfront_cache_policy`
-with your desired TTLs, then `terraform apply`.
+`cloudfront.tf` defines `aws_cloudfront_cache_policy.origin_controlled` with
+`default_ttl = 0`: CloudFront caches a response only when the origin returns
+`Cache-Control`/`Expires`, and uses the origin's TTL otherwise. The satellite
+tiles endpoint (`/tiles/s2cloudless/{z}/{y}/{x}`) is currently the only handler
+that returns a `Cache-Control` header, so it is the only thing cached at the
+edge.
+
+To cache another endpoint, have its Clojure handler return a `Cache-Control`
+header - no Terraform change is needed. To cache a path unconditionally instead,
+add an `ordered_cache_behavior` for that path with an explicit cache policy.
 
 ## Tear down
 

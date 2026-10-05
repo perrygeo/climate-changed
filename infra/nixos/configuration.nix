@@ -58,13 +58,15 @@ in
 
   boot.extraModprobeConfig = ''
     options nbd nbds_max=16
-    # Cap ZFS ARC on the 2 GiB t3.small so the JVM and ZeroFS keep headroom.
+    # Cap ZFS ARC on the 4 GiB t3.medium so the JVM and ZeroFS keep headroom.
     options zfs zfs_arc_max=536870912
   '';
 
   environment.systemPackages = [
     pkgs.zerofs
     pkgs.zfs
+    pkgs.htop
+    pkgs.sysstat
   ];
 
   # /var/lib/climate-changed must exist before ZFS mounts era_ts under it.
@@ -82,7 +84,7 @@ in
       [cache]
       dir = "/var/cache/zerofs"
       disk_size_gb = 2.0
-      memory_size_gb = 0.25
+      memory_size_gb = 0.5
 
       [storage]
       url = "${zerofsStorageUrl}"
