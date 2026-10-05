@@ -58,7 +58,6 @@ in
 
   boot.extraModprobeConfig = ''
     options nbd nbds_max=16
-    # Cap ZFS ARC on the 4 GiB t3.medium so the JVM and ZeroFS keep headroom.
     options zfs zfs_arc_max=536870912
   '';
 
@@ -83,7 +82,7 @@ in
     text = ''
       [cache]
       dir = "/var/cache/zerofs"
-      disk_size_gb = 2.0
+      disk_size_gb = 4.0
       memory_size_gb = 0.5
 
       [storage]

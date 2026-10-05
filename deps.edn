@@ -14,6 +14,7 @@
            ring/ring-headers              {:mvn/version "0.4.0"}
            ring/ring-ssl                  {:mvn/version "0.4.0"}
            techascent/tech.ml.dataset     {:mvn/version "8.026"}}
+ :jvm-opts ["--enable-native-access=ALL-UNNAMED"]
  :aliases {:shadow-cljs {:extra-deps {thheller/shadow-cljs {:mvn/version "3.5.4"}}}
            :dev         {:extra-paths ["dev"]
                          :extra-deps  {cider/piggieback     {:mvn/version "0.7.0"}

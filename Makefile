@@ -102,3 +102,6 @@ logs:
 # it ain't continuous but it's more reliable than github actions
 integrate-and-deliver: check test clean release deploy
 	@echo "'make logs' to tail server logs"
+
+traffic:
+	nix-shell -p har-to-k6 k6 --run "har-to-k6 har.json -o replay.js && k6 run --vus 2 --duration 10s replay.js"
