@@ -1,10 +1,10 @@
 (ns climate-changed.era5.summary
   (:require
+   [climate-changed.era5.duckdb :as duckdb]
    [climate-changed.era5.fetch :as fetch]
    [climate-changed.era5.grid :as grid]
    [climate-changed.era5.variables :as vars]
-   [tech.v3.dataset :as ds]
-   [tech.v3.datatype :as dtype]))
+   [tech.v3.dataset :as ds]))
 
 (set! *warn-on-reflection* true)
 
@@ -34,55 +34,75 @@
                       (utc-start-of-year (+ start-year 10)))})
           (range era5-start-year (+ end-year 10) 10))))
 
-(defn- descriptive-stats-row
-  "The `ds/descriptive-stats` row for `col-name` as a plain map, or nil."
-  [data col-name]
-  (some #(when (= (:col-name %) col-name) %)
-        (ds/rows (ds/descriptive-stats data))))
-
 (defn- decade-start-year
   "The UTC decade containing `t`, expressed as its start year, e.g. 2020."
   ^long [^java.time.Instant t]
   (let [^java.time.ZonedDateTime zdt (.atZone t java.time.ZoneOffset/UTC)]
     (long (* 10 (quot (.getYear zdt) 10)))))
 
-(defn- period-stats
-  "Descriptive stats for `varname` and `valid_time` over one decade of `data`."
-  [data varname]
-  (let [subset (ds/select-columns data [varname "valid_time"])
-        vstats (descriptive-stats-row subset varname)
-        tstats (descriptive-stats-row subset "valid_time")]
-    {:n     (:n-valid vstats)
-     :min   (:min vstats)
-     :mean  (:mean vstats)
-     :max   (:max vstats)
-     :sd    (:standard-deviation vstats)
-     :start (some-> (:min tstats) str)
-     :end   (some-> (:max tstats) str)}))
+(defn- decade-summary-sql
+  "DuckDB SQL computing per-decade descriptive stats for `varname` over the
+  parquet file at `parquet-path`.
+
+  Notes:
+  - `//` is integer division in DuckDB (plain `/` is float), so
+    `(year // 10) * 10` buckets observations into their UTC decade start year.
+  - min/max are cast to DOUBLE so their JSON representation matches the old
+    float-widened Clojure output exactly.
+  - `stddev_samp` is the sample standard deviation, matching tech.ml.dataset.
+  - column aliases are double-quoted because `min`, `max`, `start`, and `end`
+    are reserved words in DuckDB."
+  [varname parquet-path]
+  (str "SELECT (year(valid_time) // 10) * 10 AS decade,"
+       " count(*) AS \"n\","
+       " min(" varname ")::DOUBLE AS \"min\","
+       " avg(" varname ") AS \"mean\","
+       " max(" varname ")::DOUBLE AS \"max\","
+       " stddev_samp(" varname ") AS \"sd\","
+       " min(valid_time) AS \"start\","
+       " max(valid_time) AS \"end\""
+       " FROM '" parquet-path "'"
+       " GROUP BY decade"
+       " ORDER BY decade"))
+
+(defn- row->period-stats
+  "Convert a DuckDB result row (keyword keys) into a period-stats map, with
+  valid_time bounds stringified to ISO-8601."
+  [{:keys [n min mean max sd start end]}]
+  {:n     n
+   :min   min
+   :mean  mean
+   :max   max
+   :sd    sd
+   :start (some-> start str)
+   :end   (some-> end str)})
 
 (defn- decade-stats
-  "Map of decade start year -> `period-stats` for each decade present in
-  `data`, computed in a single group-by pass."
-  [data varname]
-  (let [data (ds/add-or-update-column
-              data "decade"
-              (dtype/emap decade-start-year :int64 (get data "valid_time")))]
-    (ds/group-by-column data "decade"
-                        {:group-by-finalizer #(period-stats % varname)})))
+  "Map of decade start year -> period-stats for each decade present in the
+  DuckDB `result` dataset."
+  [result]
+  (reduce (fn [acc row]
+            (assoc acc (:decade row) (row->period-stats row)))
+          {}
+          (ds/rows result)))
 
 (def ^:private empty-period-stats
   "Stats for a reference period with no observations."
   {:n nil :min nil :mean nil :max nil :sd nil :start nil :end nil})
 
 (defn era5-summary
-  "Climate summary for a grid cell, broken into reference periods."
+  "Climate summary for a grid cell, broken into reference periods. Ensures the
+  pixel's parquet timeseries exists (downloading it if necessary), then uses the
+  sandboxed DuckDB to compute per-decade descriptive statistics."
   [varname row col]
   (when-not (vars/valid-varname? varname)
     (throw (ex-info (str "Unknown ERA5 variable: " varname)
                     {:status 400 :varname varname})))
-  (let [data              (fetch/fetch-ts varname row col)
+  (let [parquet-path      (fetch/ensure-ts! varname row col)
         {:keys [lat lon]} (grid/cell-center row col)
-        by-decade         (decade-stats data varname)]
+        by-decade         (-> (decade-summary-sql varname parquet-path)
+                              (duckdb/query)
+                              (decade-stats))]
     {:row     row
      :col     col
      :lat     lat
@@ -94,5 +114,5 @@
                     climate-periods)}))
 
 (comment
-
+  (duckdb/init!) ;; idempotent, I think
   (time (era5-summary "t2m" 203 427)))

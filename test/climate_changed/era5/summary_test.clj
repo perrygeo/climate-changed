@@ -1,5 +1,6 @@
 (ns climate-changed.era5.summary-test
   (:require
+   [climate-changed.era5.duckdb :as duckdb]
    [climate-changed.era5.fetch :as fetch]
    [climate-changed.era5.summary :as summary]
    [clojure.test :refer [deftest is testing]]
@@ -29,36 +30,62 @@
       (is (= 1950 (decade-start-year (java.time.Instant/parse "1950-01-01T00:00:00Z"))))
       (is (= 2020 (decade-start-year (java.time.Instant/parse "2024-06-01T00:00:00Z")))))))
 
-(deftest period-stats-test
-  (let [period-stats #'summary/period-stats
-        data         (ds/->dataset {"valid_time" [(java.time.Instant/parse "1940-01-01T00:00:00Z")
-                                                  (java.time.Instant/parse "1941-01-01T00:00:00Z")]
-                                    "t2m"        [280.0 281.0]})
-        stats        (period-stats data "t2m")]
-    (testing "computes descriptive statistics for the varname column"
+(deftest decade-summary-sql-test
+  (let [decade-summary-sql #'summary/decade-summary-sql
+        sql                (decade-summary-sql "t2m" "era_ts/182/104/t2m.parquet")]
+    (testing "buckets by UTC decade with integer division"
+      (is (re-find #"\(year\(valid_time\) // 10\) \* 10 AS decade" sql)))
+    (testing "casts min/max to DOUBLE and uses sample stddev"
+      (is (re-find #"min\(t2m\)::DOUBLE" sql))
+      (is (re-find #"max\(t2m\)::DOUBLE" sql))
+      (is (re-find #"stddev_samp\(t2m\)" sql)))
+    (testing "reads the given parquet path"
+      (is (re-find #"FROM 'era_ts/182/104/t2m\.parquet'" sql)))
+    (testing "quotes reserved-word aliases"
+      (is (re-find #"AS \"min\"" sql))
+      (is (re-find #"AS \"start\"" sql)))))
+
+(deftest row->period-stats-test
+  (let [row->period-stats #'summary/row->period-stats
+        stats             (row->period-stats {:decade 1940
+                                              :n      2
+                                              :min    280.0
+                                              :mean   280.5
+                                              :max    281.0
+                                              :sd     0.7071
+                                              :start  (java.time.Instant/parse "1940-01-01T00:00:00Z")
+                                              :end    (java.time.Instant/parse "1941-01-01T00:00:00Z")})]
+    (testing "passes through the numeric stats"
       (is (= 2 (:n stats)))
       (is (= 280.0 (:min stats)))
       (is (= 280.5 (:mean stats)))
       (is (= 281.0 (:max stats)))
-      (is (< 0.7 (:sd stats) 0.8)))
+      (is (= 0.7071 (:sd stats))))
     (testing "start and end are stringified from valid_time bounds"
       (is (= "1940-01-01T00:00:00Z" (:start stats)))
       (is (= "1941-01-01T00:00:00Z" (:end stats))))))
 
 (deftest decade-stats-test
   (let [decade-stats #'summary/decade-stats
-        data         (ds/->dataset {"valid_time" [(java.time.Instant/parse "1940-01-01T00:00:00Z")
-                                                  (java.time.Instant/parse "1941-01-01T00:00:00Z")
-                                                  (java.time.Instant/parse "1950-06-01T00:00:00Z")
-                                                  (java.time.Instant/parse "2024-06-01T00:00:00Z")]
-                                    "t2m"        [280.0 281.0 282.0 283.0]})
-        stats        (decade-stats data "t2m")]
-    (testing "groups rows by UTC decade in one pass"
+        result       (ds/->dataset {:decade [1940 1950 2020]
+                                    :n      [2 1 1]
+                                    :min    [280.0 282.0 283.0]
+                                    :mean   [280.5 282.0 283.0]
+                                    :max    [281.0 282.0 283.0]
+                                    :sd     [0.7 0.0 0.0]
+                                    :start  [(java.time.Instant/parse "1940-01-01T00:00:00Z")
+                                             (java.time.Instant/parse "1950-06-01T00:00:00Z")
+                                             (java.time.Instant/parse "2024-06-01T00:00:00Z")]
+                                    :end    [(java.time.Instant/parse "1941-01-01T00:00:00Z")
+                                             (java.time.Instant/parse "1950-06-01T00:00:00Z")
+                                             (java.time.Instant/parse "2024-06-01T00:00:00Z")]})
+        stats        (decade-stats result)]
+    (testing "keys the stats by decade start year"
       (is (= #{1940 1950 2020} (set (keys stats))))
       (is (= 2 (get-in stats [1940 :n])))
       (is (= 1 (get-in stats [1950 :n])))
       (is (= 1 (get-in stats [2020 :n]))))
-    (testing "per-decade stats match the filtered subset"
+    (testing "per-decade stats carry through"
       (is (= 280.5 (get-in stats [1940 :mean])))
       (is (= 282.0 (get-in stats [1950 :mean])))
       (is (= 283.0 (get-in stats [2020 :mean]))))))
@@ -68,13 +95,21 @@
     (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Unknown ERA5 variable"
                           (summary/era5-summary "nope" 198 1020))))
   (testing "assembles grid metadata, units, and per-period stats"
-    (let [data (ds/->dataset {"valid_time" [(java.time.Instant/parse "1940-01-01T00:00:00Z")
+    (let [result-ds (ds/->dataset {:decade [1940 2020]
+                                   :n      [1 1]
+                                   :min    [280.0 283.0]
+                                   :mean   [280.0 283.0]
+                                   :max    [280.0 283.0]
+                                   :sd     [0.0 0.0]
+                                   :start  [(java.time.Instant/parse "1940-01-01T00:00:00Z")
                                             (java.time.Instant/parse "2024-06-01T00:00:00Z")]
-                              "t2m"        [280.0 283.0]})
-          result (with-redefs [fetch/fetch-ts (fn [varname _row _col]
-                                                (is (= "t2m" varname))
-                                                data)]
-                   (summary/era5-summary "t2m" 198 1020))]
+                                   :end    [(java.time.Instant/parse "1940-01-01T00:00:00Z")
+                                            (java.time.Instant/parse "2024-06-01T00:00:00Z")]})
+          result    (with-redefs [fetch/ensure-ts! (fn [varname _row _col]
+                                                     (is (= "t2m" varname))
+                                                     "era_ts/198/1020/t2m.parquet")
+                                  duckdb/query     (fn [_sql] result-ds)]
+                      (summary/era5-summary "t2m" 198 1020))]
       (is (= {:row 198 :col 1020 :lat 40.5 :lon 255.0 :var "t2m" :units "K"}
              (select-keys result [:row :col :lat :lon :var :units])))
       (is (= (count summary/climate-periods) (count (:periods result))))

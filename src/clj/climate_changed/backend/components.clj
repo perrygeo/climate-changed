@@ -2,6 +2,7 @@
   (:require
    [climate-changed.backend.location-index :as location-index]
    [climate-changed.backend.server :as server]
+   [climate-changed.era5.duckdb :as duckdb]
    [integrant.core :as ig]
    [ring.adapter.jetty9 :as jetty])
   (:import [org.slf4j LoggerFactory]))
@@ -10,6 +11,17 @@
 
 (def ^:private ^org.slf4j.Logger logger
   (LoggerFactory/getLogger "climate-changed.backend.components"))
+
+(defmethod ig/init-key :climate-changed/duckdb
+  [_ opts]
+  (.debug logger "Initializing sandboxed DuckDB")
+  (duckdb/init! opts)
+  ::running)
+
+(defmethod ig/halt-key! :climate-changed/duckdb
+  [_ _]
+  (.debug logger "Shutting down DuckDB")
+  (duckdb/shutdown!))
 
 (defmethod ig/init-key :climate-changed/location-index
   [_ _opts]

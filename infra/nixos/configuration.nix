@@ -301,6 +301,10 @@ in
       # Cache the extracted era5-timeseries binary in a stable, owned
       # location instead of accumulating temp files in /tmp.
       ERA5_FETCHER_CACHE = "/var/lib/climate-changed/era5-timeseries";
+      # ducktape binds libduckdb.so via the JDK Foreign Function API, so the
+      # native library must be discoverable at runtime. Pin it to nixpkgs'
+      # duckdb (1.5.5), whose ABI matches the ducktape binding.
+      LD_LIBRARY_PATH = "${pkgs.duckdb.lib}/lib";
     };
 
     serviceConfig = {

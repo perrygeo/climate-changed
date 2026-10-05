@@ -110,14 +110,16 @@
 (defn- release-fetch! [varname row col]
   (swap! fetch-ts-status dissoc [varname row col]))
 
-(defn fetch-ts
-  "Fetch timeseries ERA5 data for the given pixel."
+(defn ensure-ts!
+  "Ensure the ERA5 parquet timeseries for the given pixel exists on disk,
+  downloading it via the fetcher binary if missing, and return its path.
+
+  Concurrency gate: keep at most `max-concurrent-fetches` in flight and never
+  start a second fetch for the same pixel. Throws an ex-info with :status 423
+  when a fetch can't be started because the gate is full."
   [varname row col]
-  (let [parquet-path (expected-path varname row col)
-        exists?      (.exists (io/file parquet-path))]
-    (when-not exists?
-      ;; Concurrency gate: keep at most max-concurrent-fetches
-      ;; in flight and never start a second fetch for the same pixel.
+  (let [parquet-path (expected-path varname row col)]
+    (when-not (.exists (io/file parquet-path))
       (when-not (try-acquire-fetch! varname row col)
         (Thread/sleep 500)
         (when-not (try-acquire-fetch! varname row col) ;; one retry
@@ -138,10 +140,14 @@
             (assert (= (str/trim out) parquet-path))))
         (finally
           (release-fetch! varname row col))))
-    ;; Read from permanent storage and return a clean dataset
-    (->
-     (pq/parquet->ds parquet-path)
-     (fix-valid-time))))
+    parquet-path))
+
+(defn fetch-ts
+  "Fetch timeseries ERA5 data for the given pixel, returning a clean dataset."
+  [varname row col]
+  (-> (ensure-ts! varname row col)
+      (pq/parquet->ds)
+      (fix-valid-time)))
 
 (comment ;; interactive test of fetch-ts
   (time (let [{:keys [row col]} (grid/snap-coords -105.0844 40.5853)

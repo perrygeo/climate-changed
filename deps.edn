@@ -1,5 +1,6 @@
 {:paths   ["src/clj" "src/cljc" "src/cljs" "resources" "test"]
- :deps    {bidi/bidi                      {:mvn/version "2.1.6"}
+ :deps    {ai.dyal/ducktape               {:mvn/version "0.1.0-SNAPSHOT"}
+           bidi/bidi                      {:mvn/version "2.1.6"}
            ch.qos.logback/logback-classic {:mvn/version "1.6.5"}
            cheshire/cheshire              {:mvn/version "6.2.0"}
            com.techascent/tmd-parquet     {:mvn/version "1.001"}
