@@ -50,6 +50,7 @@ update:
 	neil dep update
 	rm package-lock.json
 	npm update
+	cd src/rs/era5-timeseries && cargo update
 
 check:
 	clj-kondo --lint src test
@@ -104,4 +105,5 @@ integrate-and-deliver: check test clean release deploy
 	@echo "'make logs' to tail server logs"
 
 traffic:
-	nix-shell -p har-to-k6 k6 --run "har-to-k6 har.json -o replay.js && k6 run --vus 2 --duration 10s replay.js"
+	rm /tmp/replay.js || echo "ok"
+	har-to-k6 har.json -o /tmp/replay.js && k6 run --vus 4 --duration 15s /tmp/replay.js
