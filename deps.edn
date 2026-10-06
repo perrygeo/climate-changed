@@ -13,13 +13,13 @@
            ring/ring-core                 {:mvn/version "1.15.5"}
            ring/ring-headers              {:mvn/version "0.4.0"}
            ring/ring-ssl                  {:mvn/version "0.4.0"}
-           techascent/tech.ml.dataset     {:mvn/version "8.026"}}
+           techascent/tech.ml.dataset     {:mvn/version "8.027"}}
  :jvm-opts ["--enable-native-access=ALL-UNNAMED"]
- :aliases {:shadow-cljs {:extra-deps {thheller/shadow-cljs {:mvn/version "3.5.4"}}}
+ :aliases {:shadow-cljs {:extra-deps {thheller/shadow-cljs {:mvn/version "3.5.5"}}}
            :dev         {:extra-paths ["dev"]
                          :extra-deps  {cider/piggieback     {:mvn/version "0.7.0"}
                                        integrant/repl       {:mvn/version "0.5.1"}
-                                       thheller/shadow-cljs {:mvn/version "3.5.4"}}
+                                       thheller/shadow-cljs {:mvn/version "3.5.5"}}
                          :main-opts   ["-m" "shadow.cljs.devtools.cli" "server"]}
            :build       {:extra-paths ["build"]
                          :extra-deps  {io.github.clojure/tools.build
