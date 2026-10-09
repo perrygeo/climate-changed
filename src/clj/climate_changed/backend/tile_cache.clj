@@ -12,6 +12,9 @@
 ;; In-memory cache of proxied Sentinel-2 tiles, keyed by [z y x].
 (defonce tile-cache (atom {}))
 
+(comment
+  (count @tile-cache))
+
 (def ^:private tile-cache-max-entries 4096)
 
 (def ^:private tile-cache-ttl-ms
@@ -19,7 +22,7 @@
   add another cache layer in front in production."
   (* 7 24 60 60 1000))
 
-(def s2cloudless-max-zoom 18)
+(def s2cloudless-max-zoom 11)
 
 (defn cache-get
   "Return cached tile bytes for key `k`, or nil when absent or expired."

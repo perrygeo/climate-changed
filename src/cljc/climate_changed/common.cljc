@@ -40,7 +40,7 @@
      :color            "var(--text-primary)"
      :font-family      "system-ui, sans-serif"}]
    ;; Header floats over the full-screen map: translucent theme background so
-   ;; the map shows through, title left / status right.
+   ;; the map shows through, title left / status + unit toggle right.
    [:.app-header
     {:position        "fixed"
      :top             0
@@ -62,6 +62,27 @@
    [:.status
     {:font-size "0.85rem"
      :color     "var(--text-secondary)"}]
+   ;; Right side of the header: status text + temperature unit toggle.
+   [:.header-right
+    {:display     "flex"
+     :align-items "center"
+     :gap         "0.75rem"}]
+   ;; Segmented °C/°F control (see climate-changed.frontend.app/temp-unit-toggle).
+   [:.temp-unit-toggle
+    {:display       "inline-flex"
+     :border        "1px solid var(--border-secondary)"
+     :border-radius "6px"
+     :overflow      "hidden"}]
+   [".temp-unit-toggle button"
+    {:padding   "0.25rem 0.6rem"
+     :border    "none"
+     :background "var(--bg-secondary)"
+     :color     "var(--text-secondary)"
+     :cursor    "pointer"
+     :font-size "0.85rem"}]
+   [".temp-unit-toggle button.active"
+    {:background "var(--bg-selected)"
+     :color      "var(--text-primary)"}]
    ;; Floating translucent panel on the right holding the dataview + controls.
    [:.side-panel
     {:position        "fixed"

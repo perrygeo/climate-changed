@@ -115,4 +115,7 @@
 
 (comment
   (duckdb/init!) ;; idempotent, I think
-  (time (era5-summary "t2m" 203 427)))
+  (time+
+   (era5-summary "t2m" 204 427))
+  ;; WIP
+  )

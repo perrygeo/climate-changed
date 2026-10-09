@@ -14,7 +14,8 @@
   (:require
    ["d3-array" :as d3-array]
    ["d3-scale" :as d3-scale]
-   ["d3-shape" :as d3-shape]))
+   ["d3-shape" :as d3-shape]
+   [climate-changed.frontend.units :as u]))
 
 ;; The side panel is ~40% of the viewport, so keep the chart compact and
 ;; responsive via viewBox; SVG scales to its container width.
@@ -22,18 +23,11 @@
 (def ^:private chart-height 200)
 (def ^:private margin {:top 16 :right 16 :bottom 44 :left 44})
 
-(defn- kelvin->celsius [k]
-  (- k 273.15))
-
-(defn- display-temp
-  "Raw temperature in display units (°C for Kelvin values)."
-  [v units]
-  (if (= units "K") (kelvin->celsius v) v))
-
 (defn- period-temp
-  "Temperature at key `k` of `period` in display units, or nil when absent."
-  [period k units]
-  (some-> (k period) (display-temp units)))
+  "Temperature at key `k` of `period` in the user's display units (°C/°F for
+  Kelvin values), or nil when absent."
+  [period k units temp-unit]
+  (some-> (k period) (u/display-temp units temp-unit)))
 
 (defn- period-label
   "Human label for a climate period, e.g. \"1940–1970\". Falls back to the
@@ -50,32 +44,32 @@
 (defn- period-series
   "Chart points for temperature key `k` across `periods`, dropping periods
   with no value."
-  [periods k units]
+  [periods k units temp-unit]
   (->> periods
        (map-indexed (fn [i p]
                       {:label (period-label p i)
-                       :value (period-temp p k units)}))
+                       :value (period-temp p k units temp-unit)}))
        (filterv :value)
        vec))
 
 (defn mean-temperature-chart
   "Line chart of min, mean, and max temperature across the climate periods.
   `periods` is the :periods vector from an ERA5 summary; `units` its :units
-  string."
-  [periods units]
+  string; `temp-unit` the user's display unit (:c or :f) for Kelvin values."
+  [periods units temp-unit]
   (let [labels   (mapv (fn [i p] (period-label p i)) (range) periods)
         series   [{:id    :mean
                    :label "mean"
                    :class "chart-line--mean"
-                   :pts   (period-series periods :mean units)}
+                   :pts   (period-series periods :mean units temp-unit)}
                   {:id    :min
                    :label "min"
                    :class "chart-line--min"
-                   :pts   (period-series periods :min units)}
+                   :pts   (period-series periods :min units temp-unit)}
                   {:id    :max
                    :label "max"
                    :class "chart-line--max"
-                   :pts   (period-series periods :max units)}]
+                   :pts   (period-series periods :max units temp-unit)}]
         mean-pts (:pts (first series))]
     (if (empty? mean-pts)
       [:p {:class "chart-hint"} "No mean temperature data for this cell"]
@@ -146,11 +140,12 @@
                        :cy    (y-scale (:value p))
                        :r     4
                        :class (str "chart-point chart-point--" (name (:id s)))}]
-             [:title (str (:label s) " " (:label p) ": " (.toFixed (:value p) 1) " °C")]])]]))))
+             [:title (str (:label s) " " (:label p) ": " (.toFixed (:value p) 1)
+                          " " (u/temp-unit-symbol temp-unit))]])]]))))
 
 (comment
   (mean-temperature-chart
    [{:start "1940-01-01T00:00:00Z" :end "1970-01-01T00:00:00Z" :mean 281.5 :min 280.0 :max 283.0}
     {:start "1970-01-01T00:00:00Z" :end "2000-01-01T00:00:00Z" :mean 282.1 :min 279.5 :max 284.5}
     {:start "2000-01-01T00:00:00Z" :end nil :mean 283.0 :min 281.0 :max 285.5}]
-   "K"))
+   "K" :f))

@@ -11,7 +11,8 @@
            :selected-location  nil
            :map-style          nil
            :era5-summary       nil
-           :location-stats     nil}))
+           :location-stats     nil
+           :temp-unit          :f}))
 
 ;; The maplibre Map instance is a mutable JS object; keep it in its own atom
 ;; so the shared `state` atom's watchers don't fire on map mount/unmount.

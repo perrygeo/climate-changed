@@ -9,6 +9,7 @@
    [climate-changed.frontend.interactive-map :as imap]
    [climate-changed.frontend.search :as search]
    [climate-changed.frontend.state :as state]
+   [climate-changed.frontend.units :as u]
    [climate-changed.routes :as routes]
    [cljs.reader :as reader]
    [clojure.string :as str]))
@@ -95,14 +96,15 @@
   era5-summary-watch)
 
 (defn- fmt-value
-  "Format a summary statistic. Kelvin values render as °C; everything else
-  shows two decimals with its unit. Nil (a period with no observations)
-  renders as an em dash."
-  [x units]
+  "Format a summary statistic. Kelvin values render in the user's display
+  unit (°C or °F); everything else shows two decimals with its unit. Nil (a
+  period with no observations) renders as an em dash."
+  [x units temp-unit]
   (if (nil? x)
     "—"
     (case units
-      "K" (str (.toFixed (- x 273.15) 1) " °C")
+      "K" (str (.toFixed (u/display-temp x units temp-unit) 1)
+               " " (u/temp-unit-symbol temp-unit))
       (str (.toFixed x 2) " " units))))
 
 (defn- fmt-coord [x]
@@ -144,7 +146,8 @@
            (str "Population: " (fmt-population population))])])]))
 
 (defn era5-summary-view []
-  (let [s (:era5-summary @state/state)]
+  (let [s         (:era5-summary @state/state)
+        temp-unit (:temp-unit @state/state)]
     [:div {:class "era5-summary"}
      (cond
        (nil? s)
@@ -161,7 +164,7 @@
         [:p {:class "summary-title"}
          (str (get-in vars/era5-variables [(keyword (:var s)) :name] (:var s))
               ", lat: " (fmt-coord (:lat s)) "°, long: " (fmt-coord (:lon s)) "°")]
-        [charts/mean-temperature-chart (:periods s) (:units s)]
+        [charts/mean-temperature-chart (:periods s) (:units s) temp-unit]
         [:table {:class "summary-table"}
          [:thead
           [:tr [:th "period"] [:th "mean"] [:th "min"] [:th "max"] [:th "obs"]]]
@@ -170,11 +173,24 @@
            (fn [i p]
              [:tr {:key i}
               [:td (fmt-period p)]
-              [:td (fmt-value (:mean p) (:units s))]
-              [:td (fmt-value (:min p) (:units s))]
-              [:td (fmt-value (:max p) (:units s))]
+              [:td (fmt-value (:mean p) (:units s) temp-unit)]
+              [:td (fmt-value (:min p) (:units s) temp-unit)]
+              [:td (fmt-value (:max p) (:units s) temp-unit)]
               [:td (:n p)]])
            (:periods s))]]])]))
+
+(defn temp-unit-toggle
+  "Segmented °C/°F control in the header; switches the display unit used by
+  all temperature readouts. The API keeps reporting Kelvin — conversion is
+  purely a UI concern (see climate-changed.frontend.temp-units)."
+  []
+  (let [unit (:temp-unit @state/state)]
+    [:div {:class "temp-unit-toggle" :role "group" :aria-label "Temperature units"}
+     (for [u [:c :f]]
+       [:button {:key      u
+                 :class    (when (= unit u) "active")
+                 :on-click #(swap! state/state assoc :temp-unit u)}
+        (u/temp-unit-symbol u)])]))
 
 (defn app
   "Markup for the main application div, top level layout"
@@ -184,16 +200,18 @@
      [:header {:class "app-header"}
       [:a {:class "app-title-link" :href "/"}
        [:h1 {:class "app-title"} common/appname]]
-      (let [{:keys [n complete error]} (:location-stats @state/state)]
-        [:span {:class "status"}
-         (cond
-           loading-locations? "Loading…"
-           error              nil
-           (and n (pos? n))
-           (if (= n complete)
-             (str n " locations indexed")
-             (str complete " of " n " locations indexed"))
-           :else nil)])]
+      [:div {:class "header-right"}
+       (let [{:keys [n complete error]} (:location-stats @state/state)]
+         [:span {:class "status"}
+          (cond
+            loading-locations? "Loading…"
+            error              nil
+            (and n (pos? n))
+            (if (= n complete)
+              (str n " locations indexed")
+              (str complete " of " n " locations indexed"))
+            :else nil)])
+       [temp-unit-toggle]]]
      [:div {:class "side-panel"}
       [search/location-typeahead]
       [selected-location-view]
