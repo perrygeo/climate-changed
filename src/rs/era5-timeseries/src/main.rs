@@ -63,7 +63,8 @@ async fn main() -> Result<()> {
     )
     .context("opening S3 storage")?;
 
-    let repo = Repository::open(None, storage, Default::default())
+    let repo = Repository::open(storage)
+        .execute()
         .await
         .context("opening icechunk repository")?;
 
