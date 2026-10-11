@@ -68,3 +68,31 @@
   (let [{:keys [lat lon]} (cell-center row col)
         half              0.125]
     [(- lon half) (- lat half) (+ lon half) (+ lat half)]))
+
+(def ^:private empty-feature-collection
+  {:type "FeatureCollection" :features []})
+
+(defn- normalize-lon
+  "Normalize a longitude in [0, 360) to [-180, 180) for display."
+  [lon]
+  (if (> lon 180.0) (- lon 360.0) lon))
+
+(defn era5-pixel-geojson
+  "GeoJSON FeatureCollection for the ERA5 grid-cell boundary containing `loc`,
+  or an empty collection when `loc` is nil. The polygon ring traces the
+  0.25-degree cell that `loc` snaps to."
+  [loc]
+  (if-let [{:keys [longitude latitude]} loc]
+    (let [{:keys [row col]}                 (snap-coords longitude latitude)
+          [min-lon min-lat max-lon max-lat] (cell-bbox row col)
+          min-lon                           (normalize-lon min-lon)
+          max-lon                           (normalize-lon max-lon)]
+      {:type     "FeatureCollection"
+       :features [{:type     "Feature"
+                   :geometry {:type        "Polygon"
+                              :coordinates [[[min-lon min-lat]
+                                             [max-lon min-lat]
+                                             [max-lon max-lat]
+                                             [min-lon max-lat]
+                                             [min-lon min-lat]]]}}]})
+    empty-feature-collection))
