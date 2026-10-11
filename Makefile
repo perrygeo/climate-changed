@@ -28,7 +28,7 @@ clean:
 	rm -rf ./target
 	rm -rf ./resources/public/js/
 	rm -rf ./resources/bin/
-	rm -rf ./src/rs/era5-timeseries/target/
+	cd src/rs/era5-timeseries && cargo clean
 
 release: release-client release-era5-timeseries release-server
 
