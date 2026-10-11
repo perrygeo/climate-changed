@@ -7,12 +7,22 @@
    [clojure.string :as str]
    [reagent.core :as r]))
 
+(defn- loc-label
+  "Human-readable label combining name, region (state) and country."
+  [loc]
+  (->> [(:name loc) (:region loc) (:country loc)]
+       (remove str/blank?)
+       (str/join ", ")))
+
 (defn- loc-matches
-  "Loaded locations whose name contains `query` (case-insensitive)."
+  "Loaded locations whose name, region (state) or country contains `query`
+  (case-insensitive)."
   [query]
   (when (seq query)
     (let [q (str/lower-case query)]
-      (filter #(str/includes? (str/lower-case (:name %)) q) (:all-locations @state/state)))))
+      (filter (fn [loc]
+                (str/includes? (str/lower-case (loc-label loc)) q))
+              (:all-locations @state/state)))))
 
 (defn- pick-location!
   "Select `loc` from the typeahead,
@@ -60,11 +70,11 @@
                                     "Escape"    (reset! open? false)
                                     nil))}]
           [:button {:class    "btn"
-                    :title    "I'm feeling lucky"
+                    :title    "random-walk"
                     :disabled (nil? (:all-locations @state/state))
                     :on-click #(when-let [locs (:all-locations @state/state)]
                                  (pick-location! query open? (rand-nth locs)))}
-           "🎲"]]
+           "🚶"]]
          (when (and @open? (seq results))
            [:ul {:class "typeahead-list"}
             (doall
@@ -75,7 +85,7 @@
                       :on-mouse-down (fn [e]
                                        (.preventDefault e)
                                        (pick-location! query open? loc))}
-                 (:name loc)])
+                 (loc-label loc)])
               results))
             (when (pos? more)
               [:li {:class "typeahead-more"} (str more " more…")])])]))))
