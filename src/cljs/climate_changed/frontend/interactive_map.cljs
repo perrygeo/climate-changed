@@ -4,8 +4,10 @@
    [bidi.bidi :as bidi]
    [cartoj.core :as cartoj]
    [cartoj.interop :as interop]
+   [climate-changed.era5.grid :as grid]
    [climate-changed.frontend.state :as state]
-   [climate-changed.routes :as routes]))
+   [climate-changed.routes :as routes]
+   [reagent.core :as r]))
 
 (def light-style "/styles/light.json")
 
@@ -26,6 +28,12 @@
    :layers  [{:id     "satellite"
               :type   "raster"
               :source "satellite"}]})
+
+(def era5-pixel-source-id "era5-pixel")
+
+(def era5-pixel-casing-layer-id "era5-pixel-casing-layer")
+
+(def era5-pixel-layer-id "era5-pixel-layer")
 
 (def locations-layer-id "locations-layer")
 
@@ -112,6 +120,40 @@
   []
   (swap! state/state assoc :map-style satellite-style))
 
+(defonce ^:private map-style-cursor
+  ;; Subscribe to only `:map-style` so the map component is not re-rendered
+  ;; on unrelated state changes (e.g. selecting a new location).
+  (r/cursor state/state [:map-style]))
+
+(defonce ^:private selected-location-cursor
+  ;; Subscribe to only `:selected-location`. Deref'd exclusively inside
+  ;; `era5-pixel-source` so that selecting a location re-renders just that
+  ;; source, not the whole map (which would re-create the "locations" source
+  ;; and cause a visible flash).
+  (r/cursor state/state [:selected-location]))
+
+(defn- era5-pixel-source
+  "Isolated component rendering the ERA5 pixel boundary for the currently
+  selected location. Derefs only `selected-location-cursor`, so selecting a
+  location re-renders just this source and leaves the rest of the map intact."
+  []
+  [cartoj/source {:id   era5-pixel-source-id
+                  :type "geojson"
+                  :data (clj->js (grid/era5-pixel-geojson @selected-location-cursor))}
+   [cartoj/layer {:id     era5-pixel-casing-layer-id
+                  :type   "line"
+                  :source era5-pixel-source-id
+                  :paint  {:line-color   "#000000"
+                           :line-opacity 0.6
+                           :line-width   2}}]
+   [cartoj/layer {:id     era5-pixel-layer-id
+                  :type   "line"
+                  :source era5-pixel-source-id
+                  :paint  {:line-color     "yellow"
+                           :line-width     2
+                           :line-opacity   0.6
+                           :line-dasharray [2 1]}}]])
+
 (defn locations-map
   "Render the interactive globe map with the locations GeoJSON source"
   []
@@ -119,8 +161,9 @@
                            :projection         "globe"
                            :max-zoom           11
                            :style-diffing      false
-                           :map-style          (:map-style @state/state)}
+                           :map-style          @map-style-cursor}
    [interop/reset-map-ref! state/map-ref]
+   [era5-pixel-source]
    [cartoj/source {:id   "locations"
                    :type "geojson"
                    :data (bidi/path-for routes/routes :locations)}
