@@ -1,4 +1,4 @@
-.PHONY: default dev clean infra release release-client release-server test test-clj test-cljs coverage doc check deploy
+.PHONY: default dev clean infra release release-client release-server test test-clj test-cljs coverage doc check deploy logs analyze-logs
 
 default:
 	@echo "Usage, local development"
@@ -16,6 +16,7 @@ default:
 	@echo "  make release   - build the release uberjar"
 	@echo "  make deploy    - deploy the uberjar to prod"
 	@echo "  make logs      - tail prod logs"
+	@echo "  make analyze-logs - metrics from prod logs"
 	@echo "  make integrate-and-deliver - full rollout"
 
 # === Local Development ===
@@ -98,6 +99,11 @@ release-era5-timeseries:
 
 logs:
 	$(SSH) "journalctl -u climate-changed.service -f"
+
+SINCE ?= 24 hours ago
+TOP ?= 15
+analyze-logs:
+	bb infra/analyze-logs.clj $(PROD_USER)@$(PROD_IP) --since "$(SINCE)" --top $(TOP)
 
 # everything to test, build and push to production... except infra
 # it ain't continuous but it's more reliable than github actions
