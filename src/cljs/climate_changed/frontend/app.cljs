@@ -95,26 +95,8 @@
 (comment
   era5-summary-watch)
 
-(defn- fmt-value
-  "Format a summary statistic. Kelvin values render in the user's display
-  unit (°C or °F); everything else shows two decimals with its unit. Nil (a
-  period with no observations) renders as an em dash."
-  [x units temp-unit]
-  (if (nil? x)
-    "—"
-    (case units
-      "K" (str (.toFixed (u/display-temp x units temp-unit) 1)
-               " " (u/temp-unit-symbol temp-unit))
-      (str (.toFixed x 2) " " units))))
-
 (defn- fmt-coord [x]
   (.toFixed x 2))
-
-(defn- fmt-period [{:keys [start end]}]
-  (cond
-    (nil? start) "—"
-    (nil? end)   (str (subs start 0 4) "–now")
-    :else        (str (subs start 0 4) "–" (subs end 0 4))))
 
 (defn- fmt-population
   "Render a population count with thousands separators, e.g. 1234567 -> \"1,234,567\"."
@@ -146,8 +128,7 @@
            (str "Population: " (fmt-population population))])])]))
 
 (defn era5-summary-view []
-  (let [s         (:era5-summary @state/state)
-        temp-unit (:temp-unit @state/state)]
+  (let [s (:era5-summary @state/state)]
     [:div {:class "era5-summary"}
      (cond
        (nil? s)
@@ -164,25 +145,12 @@
         [:p {:class "summary-title"}
          (str (get-in vars/era5-variables [(keyword (:var s)) :name] (:var s))
               ", lat: " (fmt-coord (:lat s)) "°, long: " (fmt-coord (:lon s)) "°")]
-        [charts/mean-temperature-chart (:periods s) (:units s) temp-unit]
-        [:table {:class "summary-table"}
-         [:thead
-          [:tr [:th "period"] [:th "mean"] [:th "min"] [:th "max"] [:th "obs"]]]
-         [:tbody
-          (map-indexed
-           (fn [i p]
-             [:tr {:key i}
-              [:td (fmt-period p)]
-              [:td (fmt-value (:mean p) (:units s) temp-unit)]
-              [:td (fmt-value (:min p) (:units s) temp-unit)]
-              [:td (fmt-value (:max p) (:units s) temp-unit)]
-              [:td (:n p)]])
-           (:periods s))]]])]))
+        [charts/temperature-heatmap s]])]))
 
 (defn temp-unit-toggle
-  "Segmented °C/°F control in the header; switches the display unit used by
-  all temperature readouts. The API keeps reporting Kelvin — conversion is
-  purely a UI concern (see climate-changed.frontend.temp-units)."
+  "Segmented °C/°F control in the header. The heatmap stays on Celsius with
+  Fahrenheit reference labels, so this toggle is kept for future temperature
+  readouts (see climate-changed.frontend.units)."
   []
   (let [unit (:temp-unit @state/state)]
     [:div {:class "temp-unit-toggle" :role "group" :aria-label "Temperature units"}

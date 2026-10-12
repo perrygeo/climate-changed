@@ -29,6 +29,13 @@
       (is (= "°C" (u/temp-unit-symbol :kelvin)))
       (is (= "°C" (u/temp-unit-symbol nil))))))
 
+(deftest celsius->display-test
+  (testing "Celsius values convert to the requested display unit"
+    (is (close? 0.0 (u/celsius->display 0.0 :c)))
+    (is (close? 32.0 (u/celsius->display 0.0 :f)))
+    (is (close? 37.0 (u/celsius->display 37.0 :c)))
+    (is (close? 98.6 (u/celsius->display 37.0 :f)))))
+
 (deftest display-temp-test
   (testing "Kelvin values convert to the requested unit"
     (is (close? 0.0 (u/display-temp 273.15 "K" :c)))
@@ -37,6 +44,10 @@
     (is (close? 80.33 (u/display-temp 300.0 "K" :f))))
   (testing "unknown temperature units default to Celsius"
     (is (close? 0.0 (u/display-temp 273.15 "K" :kelvin))))
+  (testing "Celsius values convert to the requested display unit"
+    (is (close? 32.0 (u/display-temp 0.0 "°C" :f)))
+    (is (close? 0.0 (u/display-temp 0.0 "°C" :c)))
+    (is (close? 98.6 (u/display-temp 37.0 "°C" :f))))
   (testing "non-Kelvin units pass through unchanged"
     (is (= 5.0 (u/display-temp 5.0 "m s⁻¹" :f)))
     (is (= 101325.0 (u/display-temp 101325.0 "Pa" :c)))

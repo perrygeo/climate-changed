@@ -1,4 +1,11 @@
 (ns climate-changed.era5.summary
+  "Climate summary for an ERA5 grid cell as a 2D observation-count heatmap.
+
+  Observations are bucketed into a grid of UTC decades (x) and equal-interval
+  temperature bins (y). Temperature bins are computed in Celsius: their edges
+  are whole degrees, the lower edge is a multiple of the chosen bin width, and
+  the bin width is chosen from a 1-5-10 progression so 0 °C and the common
+  5 °C temperature thresholds are bin edges rather than bin interiors."
   (:require
    [climate-changed.era5.duckdb :as duckdb]
    [climate-changed.era5.fetch :as fetch]
@@ -40,81 +47,180 @@
   (let [^java.time.ZonedDateTime zdt (.atZone t java.time.ZoneOffset/UTC)]
     (long (* 10 (quot (.getYear zdt) 10)))))
 
-(defn- decade-summary-sql
-  "DuckDB SQL computing per-decade descriptive stats for `varname` over the
-  parquet file at `parquet-path`.
+(def ^:private kelvin->celsius
+  "Convert a Kelvin temperature to Celsius."
+  (fn ^double [^double k] (- k 273.15)))
 
-  Notes:
-  - `//` is integer division in DuckDB (plain `/` is float), so
-    `(year // 10) * 10` buckets observations into their UTC decade start year.
-  - min/max are cast to DOUBLE so their JSON representation matches the old
-    float-widened Clojure output exactly.
-  - `stddev_samp` is the sample standard deviation, matching tech.ml.dataset.
-  - column aliases are double-quoted because `min`, `max`, `start`, and `end`
-    are reserved words in DuckDB."
+(def ^:private nice-bin-widths
+  "Whole-degree bin widths in Celsius. The 1-5-10 progression (skipping 2) is
+  deliberate: every width divides 0 and the common 5 °C thresholds, so those
+  important temperature thresholds are always bin edges."
+  [1 5 10 20 50])
+
+(def ^:private max-bin-count
+  "Upper bound on the number of temperature bins. Keeps the y-axis readable."
+  30)
+
+(defn- bin-width
+  "Choose a whole-degree Celsius bin width for a temperature `range-c`. Picks
+  the smallest width in `nice-bin-widths` that yields at most `max-bin-count`
+  bins; ranges too wide for even the coarsest width fall back to that width."
+  ^double [^double range-c]
+  (double (or (first (filter #(<= (/ range-c %) max-bin-count) nice-bin-widths))
+              (last nice-bin-widths))))
+
+(defn- floor-to-multiple
+  "Largest multiple of `width` that is <= `x`."
+  ^double [^double x ^double width]
+  (* width (Math/floor (/ x width))))
+
+(defn- bin-edges
+  "Equal-interval, whole-degree bin edges covering `[min-c max-c]`. The first
+  edge is the largest multiple of `width` <= min-c (so 0 °C is always an edge)
+  and the last edge is the first multiple of `width` >= max-c. The top bin is
+  closed at its upper edge so a max exactly on an edge does not create an
+  empty trailing bin (the histogram SQL clamps that edge into the last bin)."
+  [^double min-c ^double max-c ^double width]
+  (let [lo (floor-to-multiple min-c width)
+        n  (max 1 (long (Math/ceil (/ (- max-c lo) width))))]
+    (mapv (fn [i] (+ lo (* i width))) (range (inc n)))))
+
+(defn- edges->bins
+  "Convert a vector of bin edges into closed-at-the-lower-end bin maps."
+  [edges]
+  (mapv (fn [lo hi] {:min lo :max hi}) edges (rest edges)))
+
+(defn- bounds-sql
+  "DuckDB SQL returning the cell's overall min/max/count for `varname`."
   [varname parquet-path]
-  (str "SELECT (year(valid_time) // 10) * 10 AS decade,"
-       " count(*) AS \"n\","
-       " min(" varname ")::DOUBLE AS \"min\","
-       " avg(" varname ") AS \"mean\","
+  (str "SELECT min(" varname ")::DOUBLE AS \"min\","
        " max(" varname ")::DOUBLE AS \"max\","
-       " stddev_samp(" varname ") AS \"sd\","
-       " min(valid_time) AS \"start\","
-       " max(valid_time) AS \"end\""
+       " count(*) AS \"n\""
        " FROM '" parquet-path "'"
-       " GROUP BY decade"
-       " ORDER BY decade"))
+       " WHERE " varname " IS NOT NULL"))
 
-(defn- row->period-stats
-  "Convert a DuckDB result row (keyword keys) into a period-stats map, with
-  valid_time bounds stringified to ISO-8601."
-  [{:keys [n min mean max sd start end]}]
-  {:n     n
-   :min   min
-   :mean  mean
-   :max   max
-   :sd    sd
-   :start (some-> start str)
-   :end   (some-> end str)})
+(defn- decade-histogram-sql
+  "DuckDB SQL counting observations in each UTC decade × temperature bin.
 
-(defn- decade-stats
-  "Map of decade start year -> period-stats for each decade present in the
-  DuckDB `result` dataset."
-  [result]
+  `lo-c` is the first bin edge in Celsius, `width` is the whole-degree bin
+  width, and `max-bin` is the last valid bin index. A value's bin index is
+  `floor((t2m_c - lo-c) / width)`; a tiny epsilon guards against floating-
+  point values landing just below `lo-c`, and `least` clamps a value exactly
+  on the top edge into the last bin."
+  [varname parquet-path lo-c width max-bin]
+  (str "SELECT (year(valid_time) // 10) * 10 AS decade,"
+       " CAST(least(greatest(0, floor(((" varname " - 273.15) - " lo-c ") / "
+       width " + 1e-9)), " max-bin ") AS INTEGER) AS bin,"
+       " count(*) AS \"n\""
+       " FROM '" parquet-path "'"
+       " WHERE " varname " IS NOT NULL"
+       " GROUP BY decade, bin"
+       " ORDER BY decade, bin"))
+
+(defn- decade-bin-counts
+  "Map of decade start year -> {bin index -> observation count}, from the
+  histogram query result. Bins outside `[0 nbins)` are dropped defensively."
+  [result nbins]
   (reduce (fn [acc row]
-            (assoc acc (:decade row) (row->period-stats row)))
+            (let [decade (long (:decade row))
+                  bin    (long (:bin row))
+                  n      (long (:n row))]
+              (if (and (<= 0 bin) (< bin nbins))
+                (update-in acc [decade bin] (fnil + 0) n)
+                acc)))
           {}
           (ds/rows result)))
 
-(def ^:private empty-period-stats
-  "Stats for a reference period with no observations."
-  {:n nil :min nil :mean nil :max nil :sd nil :start nil :end nil})
+(defn- fill-periods
+  "Fill a count vector for every climate period. Periods with no histogram rows
+  get a zero for every bin. `:start`/`:end` are the fixed reference-period
+  bounds (stringified ISO-8601), not the first/last observation times."
+  [by-decade nbins]
+  (mapv (fn [{:keys [start end]}]
+          (let [decade (decade-start-year start)
+                counts (get by-decade decade)
+                row    (mapv #(get counts % 0) (range nbins))]
+            {:start  (str start)
+             :end    (some-> end str)
+             :counts row
+             :n      (reduce + row)}))
+        climate-periods))
+
+(defn- matrix-max-count
+  "The largest period × bin observation count, for normalizing the color ramp."
+  [periods]
+  (reduce max 0 (mapcat :counts periods)))
+
+(def ^:private empty-periods
+  "Reference periods with no observation counts, used when the cell has no data."
+  (mapv (fn [{:keys [start end]}]
+          {:start  (str start)
+           :end    (some-> end str)
+           :counts []
+           :n      0})
+        climate-periods))
 
 (defn era5-summary
-  "Climate summary for a grid cell, broken into reference periods. Ensures the
-  pixel's parquet timeseries exists (downloading it if necessary), then uses the
-  sandboxed DuckDB to compute per-decade descriptive statistics."
+  "Climate summary for a grid cell as a temperature-bin observation grid.
+
+  Returns:
+    :row, :col, :lat, :lon   grid metadata
+    :var, :units             the ERA5 variable and its native unit
+    :bin-unit                unit of the :bins edges (\"°C\")
+    :bins                    [{:min :max} ...] whole-degree Celsius bin edges
+    :periods                 [{:start :end :counts :n} ...] one per decade,
+                             with :counts aligned to :bins
+    :max-count               max period × bin count (color-ramp denominator)"
   [varname row col]
   (when-not (vars/valid-varname? varname)
     (throw (ex-info (str "Unknown ERA5 variable: " varname)
                     {:status 400 :varname varname})))
-  (let [parquet-path      (fetch/ensure-ts! varname row col)
-        {:keys [lat lon]} (grid/cell-center row col)
-        by-decade         (-> (decade-summary-sql varname parquet-path)
-                              (duckdb/query)
-                              (decade-stats))]
-    {:row     row
-     :col     col
-     :lat     lat
-     :lon     lon
-     :var     varname
-     :units   (get-in vars/era5-variables [(keyword varname) :units])
-     :periods (mapv (fn [{:keys [start]}]
-                      (get by-decade (decade-start-year start) empty-period-stats))
-                    climate-periods)}))
+  (let [units (get-in vars/era5-variables [(keyword varname) :units])]
+    (when-not (= "K" units)
+      (throw (ex-info (str "ERA5 temperature-bin summaries require a Kelvin variable, got " units)
+                      {:status 400 :varname varname :units units})))
+    (let [parquet-path      (fetch/ensure-ts! varname row col)
+          {:keys [lat lon]} (grid/cell-center row col)
+          bin-unit          "°C"
+          bounds            (-> (bounds-sql varname parquet-path)
+                                (duckdb/query)
+                                (ds/rows)
+                                (first))
+          min-k             (:min bounds)
+          max-k             (:max bounds)
+          n                 (long (or (:n bounds) 0))]
+      (if (or (nil? min-k) (nil? max-k) (zero? n))
+        {:row       row
+         :col       col
+         :lat       lat
+         :lon       lon
+         :var       varname
+         :units     units
+         :bin-unit  bin-unit
+         :bins      []
+         :periods   empty-periods
+         :max-count 0}
+        (let [min-c     (kelvin->celsius (double min-k))
+              max-c     (kelvin->celsius (double max-k))
+              width     (bin-width (- max-c min-c))
+              edges     (bin-edges min-c max-c width)
+              bins      (edges->bins edges)
+              nbins     (count bins)
+              by-decade (-> (decade-histogram-sql varname parquet-path (first edges) width (dec nbins))
+                            (duckdb/query)
+                            (decade-bin-counts nbins))
+              periods   (fill-periods by-decade nbins)]
+          {:row       row
+           :col       col
+           :lat       lat
+           :lon       lon
+           :var       varname
+           :units     units
+           :bin-unit  bin-unit
+           :bins      bins
+           :periods   periods
+           :max-count (matrix-max-count periods)})))))
 
 (comment
-  (duckdb/init!) ;; idempotent, I think
-  (era5-summary "t2m" 204 427)
-  ;; WIP
-  )
+  (duckdb/init!) ;; idempotent
+  (era5-summary "t2m" 204 427))

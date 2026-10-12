@@ -18,14 +18,22 @@
     :f "°F"
     "°C"))
 
+(defn celsius->display
+  "Convert a Celsius temperature to the user's display unit (:c or :f)."
+  [c temp-unit]
+  (case temp-unit
+    :f (celsius->fahrenheit c)
+    c))
+
 (defn display-temp
-  "Temperature in the user's display units. `units` is the API unit string for
-  the variable; Kelvin values are converted to °C or °F per `temp-unit`, all
-  other units pass through unchanged."
+  "Temperature in the user's display units. `units` is the unit string for the
+  value; Kelvin is converted to °C/°F and Celsius to °C/°F per `temp-unit`,
+  all other units pass through unchanged."
   [v units temp-unit]
-  (if (= units "K")
-    (let [c (kelvin->celsius v)]
-      (case temp-unit
-        :f (celsius->fahrenheit c)
-        c))
-    v))
+  (cond
+    (= units "K")  (let [c (kelvin->celsius v)]
+                     (case temp-unit
+                       :f (celsius->fahrenheit c)
+                       c))
+    (= units "°C") (celsius->display v temp-unit)
+    :else v))

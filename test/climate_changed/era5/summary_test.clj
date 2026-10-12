@@ -3,8 +3,14 @@
    [climate-changed.era5.duckdb :as duckdb]
    [climate-changed.era5.fetch :as fetch]
    [climate-changed.era5.summary :as summary]
+   [clojure.string :as str]
    [clojure.test :refer [deftest is testing]]
    [tech.v3.dataset :as ds]))
+
+(defn- find-period
+  "The climate period whose `:start` ISO string begins with `year`."
+  [periods year]
+  (first (filter #(str/starts-with? (:start %) (str year "-")) periods)))
 
 (deftest climate-periods-decade-test
   (let [ps summary/climate-periods]
@@ -30,105 +36,132 @@
       (is (= 1950 (decade-start-year (java.time.Instant/parse "1950-01-01T00:00:00Z"))))
       (is (= 2020 (decade-start-year (java.time.Instant/parse "2024-06-01T00:00:00Z")))))))
 
-(deftest decade-summary-sql-test
-  (let [decade-summary-sql #'summary/decade-summary-sql
-        sql                (decade-summary-sql "t2m" "era_ts/182/104/t2m.parquet")]
-    (testing "buckets by UTC decade with integer division"
-      (is (re-find #"\(year\(valid_time\) // 10\) \* 10 AS decade" sql)))
-    (testing "casts min/max to DOUBLE and uses sample stddev"
+(deftest bin-width-test
+  (let [bin-width #'summary/bin-width]
+    (testing "chooses a whole-degree width that keeps the bin count readable"
+      (is (= 1.0 (bin-width 0.0)))
+      (is (= 1.0 (bin-width 25.0)))
+      (is (= 1.0 (bin-width 30.0)))
+      (is (= 5.0 (bin-width 31.0)))
+      (is (= 5.0 (bin-width 50.0)))
+      (is (= 10.0 (bin-width 200.0))))
+    (testing "falls back to the coarsest width when the range is enormous"
+      (is (= 50.0 (bin-width 1000000.0))))))
+
+(deftest bin-edges-test
+  (let [bin-edges #'summary/bin-edges]
+    (testing "edges are whole degrees and enclose the data"
+      (is (= [0.0 1.0] (bin-edges 0.0 1.0 1.0)))
+      (is (= [-1.0 0.0 1.0] (bin-edges -0.5 0.5 1.0)))
+      (is (= [0.0 5.0 10.0] (bin-edges 3.0 7.0 5.0))))
+    (testing "0 °C is always an edge"
+      (is (some #(= 0.0 %) (bin-edges -7.0 8.0 5.0))))
+    (testing "a max exactly on an edge becomes the final edge (no empty top bin)"
+      (is (= [-20.0 -15.0 -10.0 -5.0 0.0 5.0 10.0 15.0 20.0 25.0 30.0]
+             (bin-edges -20.0 30.0 5.0))))))
+
+(deftest edges->bins-test
+  (is (= [{:min 0.0 :max 5.0} {:min 5.0 :max 10.0}]
+         (#'summary/edges->bins [0.0 5.0 10.0]))))
+
+(deftest bounds-sql-test
+  (let [bounds-sql #'summary/bounds-sql
+        sql        (bounds-sql "t2m" "era_ts/182/104/t2m.parquet")]
+    (testing "reads min/max/count for the given parquet path"
       (is (re-find #"min\(t2m\)::DOUBLE" sql))
       (is (re-find #"max\(t2m\)::DOUBLE" sql))
-      (is (re-find #"stddev_samp\(t2m\)" sql)))
-    (testing "reads the given parquet path"
+      (is (re-find #"count\(\*\) AS \"n\"" sql))
       (is (re-find #"FROM 'era_ts/182/104/t2m\.parquet'" sql)))
-    (testing "quotes reserved-word aliases"
-      (is (re-find #"AS \"min\"" sql))
-      (is (re-find #"AS \"start\"" sql)))))
+    (testing "ignores missing observations"
+      (is (re-find #"WHERE t2m IS NOT NULL" sql)))))
 
-(deftest row->period-stats-test
-  (let [row->period-stats #'summary/row->period-stats
-        stats             (row->period-stats {:decade 1940
-                                              :n      2
-                                              :min    280.0
-                                              :mean   280.5
-                                              :max    281.0
-                                              :sd     0.7071
-                                              :start  (java.time.Instant/parse "1940-01-01T00:00:00Z")
-                                              :end    (java.time.Instant/parse "1941-01-01T00:00:00Z")})]
-    (testing "passes through the numeric stats"
-      (is (= 2 (:n stats)))
-      (is (= 280.0 (:min stats)))
-      (is (= 280.5 (:mean stats)))
-      (is (= 281.0 (:max stats)))
-      (is (= 0.7071 (:sd stats))))
-    (testing "start and end are stringified from valid_time bounds"
-      (is (= "1940-01-01T00:00:00Z" (:start stats)))
-      (is (= "1941-01-01T00:00:00Z" (:end stats))))))
+(deftest decade-histogram-sql-test
+  (let [decade-histogram-sql #'summary/decade-histogram-sql
+        sql                  (decade-histogram-sql "t2m" "era_ts/182/104/t2m.parquet" -20.0 5.0 9)]
+    (testing "buckets by UTC decade with integer division"
+      (is (re-find #"\(year\(valid_time\) // 10\) \* 10 AS decade" sql)))
+    (testing "bins Celsius values into whole-degree buckets"
+      (is (re-find #"t2m - 273\.15" sql))
+      (is (re-find #"-20\.0" sql))
+      (is (re-find #"5\.0" sql)))
+    (testing "clamps values into [0 max-bin]"
+      (is (re-find #"least\(greatest\(0, floor" sql))
+      (is (re-find #"9" sql)))
+    (testing "reads the given parquet path"
+      (is (re-find #"FROM 'era_ts/182/104/t2m\.parquet'" sql)))))
 
-(deftest decade-stats-test
-  (let [decade-stats #'summary/decade-stats
-        result       (ds/->dataset {:decade [1940 1950 2020]
-                                    :n      [2 1 1]
-                                    :min    [280.0 282.0 283.0]
-                                    :mean   [280.5 282.0 283.0]
-                                    :max    [281.0 282.0 283.0]
-                                    :sd     [0.7 0.0 0.0]
-                                    :start  [(java.time.Instant/parse "1940-01-01T00:00:00Z")
-                                             (java.time.Instant/parse "1950-06-01T00:00:00Z")
-                                             (java.time.Instant/parse "2024-06-01T00:00:00Z")]
-                                    :end    [(java.time.Instant/parse "1941-01-01T00:00:00Z")
-                                             (java.time.Instant/parse "1950-06-01T00:00:00Z")
-                                             (java.time.Instant/parse "2024-06-01T00:00:00Z")]})
-        stats        (decade-stats result)]
-    (testing "keys the stats by decade start year"
-      (is (= #{1940 1950 2020} (set (keys stats))))
-      (is (= 2 (get-in stats [1940 :n])))
-      (is (= 1 (get-in stats [1950 :n])))
-      (is (= 1 (get-in stats [2020 :n]))))
-    (testing "per-decade stats carry through"
-      (is (= 280.5 (get-in stats [1940 :mean])))
-      (is (= 282.0 (get-in stats [1950 :mean])))
-      (is (= 283.0 (get-in stats [2020 :mean]))))))
+(deftest decade-bin-counts-test
+  (let [decade-bin-counts #'summary/decade-bin-counts
+        result            (ds/->dataset {:decade [1940 1940 1950 1960]
+                                         :bin    [0 1 0 9]
+                                         :n      [2 3 5 7]})
+        counts            (decade-bin-counts result 2)]
+    (testing "keys by decade then bin"
+      (is (= {1940 {0 2 1 3}
+              1950 {0 5}}
+             counts)))
+    (testing "out-of-range bins are dropped"
+      (is (not (contains? counts 1960))))))
+
+(deftest fill-periods-test
+  (let [fill-periods #'summary/fill-periods
+        periods      (fill-periods {1940 {0 1 1 2}} 3)]
+    (testing "the observed decade gets its counts and total"
+      (let [p1940 (find-period periods 1940)]
+        (is (= [1 2 0] (:counts p1940)))
+        (is (= 3 (:n p1940)))
+        (is (= "1940-01-01T00:00:00Z" (:start p1940)))
+        (is (= "1950-01-01T00:00:00Z" (:end p1940)))))
+    (testing "decades without observations are zero-filled"
+      (is (= [0 0 0] (:counts (last periods))))
+      (is (zero? (:n (last periods)))))))
 
 (deftest era5-summary-test
   (testing "rejects unknown varnames with a 400 ex-data"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Unknown ERA5 variable"
                           (summary/era5-summary "nope" 198 1020))))
-  (testing "assembles grid metadata, units, and per-period stats"
-    (let [result-ds (ds/->dataset {:decade [1940 2020]
-                                   :n      [1 1]
-                                   :min    [280.0 283.0]
-                                   :mean   [280.0 283.0]
-                                   :max    [280.0 283.0]
-                                   :sd     [0.0 0.0]
-                                   :start  [(java.time.Instant/parse "1940-01-01T00:00:00Z")
-                                            (java.time.Instant/parse "2024-06-01T00:00:00Z")]
-                                   :end    [(java.time.Instant/parse "1940-01-01T00:00:00Z")
-                                            (java.time.Instant/parse "2024-06-01T00:00:00Z")]})
+
+  (testing "rejects non-Kelvin variables with a 400 ex-data"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"require a Kelvin variable"
+                          (summary/era5-summary "sp" 198 1020))))
+
+  (testing "assembles grid metadata, units, bins, and per-period count grids"
+    (let [bounds-ds (ds/->dataset {:min [253.15] :max [303.15] :n [3]})
+          hist-ds   (ds/->dataset {:decade [1940 1940 2020]
+                                   :bin    [0 1 0]
+                                   :n      [1 2 5]})
           result    (with-redefs [fetch/ensure-ts! (fn [varname _row _col]
                                                      (is (= "t2m" varname))
                                                      "era_ts/198/1020/t2m.parquet")
-                                  duckdb/query     (fn [_sql] result-ds)]
+                                  duckdb/query     (fn [sql]
+                                                     (if (re-find #"min\(t2m\)" sql)
+                                                       bounds-ds
+                                                       hist-ds))]
                       (summary/era5-summary "t2m" 198 1020))]
-      (is (= {:row 198 :col 1020 :lat 40.5 :lon 255.0 :var "t2m" :units "K"}
-             (select-keys result [:row :col :lat :lon :var :units])))
+      (is (= {:row 198 :col 1020 :lat 40.5 :lon 255.0 :var "t2m" :units "K" :bin-unit "°C"}
+             (select-keys result [:row :col :lat :lon :var :units :bin-unit])))
       (is (= (count summary/climate-periods) (count (:periods result))))
-      (testing "observations land in their decade; empty decades stay nil"
-        (let [periods (:periods result)]
-          (is (= 1 (:n (first periods))))
-          (is (= "1940-01-01T00:00:00Z" (:start (first periods))))
-          (is (= 280.0 (:mean (first periods))))
-          (is (= 1 (:n (last periods))))
-          (is (= "2024-06-01T00:00:00Z" (:start (last periods))))
-          (is (= 283.0 (:mean (last periods))))
-          (is (every? (fn [p] (and (nil? (:n p)) (nil? (:start p))))
-                      (butlast (rest periods))))))
-      (testing "every period carries the full stat shape"
-        (is (every? #(and (contains? % :n)
-                          (contains? % :min)
-                          (contains? % :mean)
-                          (contains? % :max)
-                          (contains? % :sd)
-                          (contains? % :start)
-                          (contains? % :end))
-                    (:periods result)))))))
+      (testing "bins cover -20 °C .. 30 °C in 5 °C whole-degree intervals"
+        (is (= 10 (count (:bins result))))
+        (is (= -20.0 (:min (first (:bins result)))))
+        (is (= 30.0 (:max (last (:bins result))))))
+      (testing "observations land in their decade and bin"
+        (let [periods (:periods result)
+              p1940   (find-period periods 1940)
+              p2020   (find-period periods 2020)]
+          (is (= [1 2 0 0 0 0 0 0 0 0] (:counts p1940)))
+          (is (= 3 (:n p1940)))
+          (is (= 5 (nth (:counts p2020) 0)))
+          (is (= 5 (:n p2020)))))
+      (testing "color-ramp denominator is the max period × bin count"
+        (is (= 5 (:max-count result))))))
+
+  (testing "cells with no observations return empty bins and zeroed periods"
+    (let [empty-bounds (ds/->dataset {:min [nil] :max [nil] :n [0]})
+          result       (with-redefs [fetch/ensure-ts! (fn [_ _ _] "era_ts/198/1020/t2m.parquet")
+                                     duckdb/query     (fn [_] empty-bounds)]
+                         (summary/era5-summary "t2m" 198 1020))]
+      (is (= [] (:bins result)))
+      (is (every? (fn [p] (and (= [] (:counts p)) (zero? (:n p))))
+                  (:periods result)))
+      (is (zero? (:max-count result))))))

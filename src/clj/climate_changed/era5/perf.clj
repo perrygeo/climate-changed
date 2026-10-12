@@ -15,11 +15,12 @@
     +-- fetch-ts                  fetch (or cache-hit) of the pixel timeseries
     |   |
     |   +-- fetch-s3              Rust binary's Icechunk/S3 query (cache MISS only)
-    |   +-- parquet-read         parquet->ds + valid_time fixup (always)
+    |   +-- parquet-read         parquet->ds + valid_time fixup (legacy fetch path)
     |
-    +-- stats-compute            per-decade descriptive-stats loop
+    +-- bounds-scan               DuckDB min/max/count over the parquet
+    +-- histogram-scan            DuckDB decade × temperature-bin count
 
-  So on a warm (cached) cell: summary-total ~= parquet-read + stats-compute.
+  So on a warm (cached) cell: summary-total ~= bounds-scan + histogram-scan.
   On a cold cell, fetch-s3 is added and usually dominates."
   (:require
    [clojure.string :as str]

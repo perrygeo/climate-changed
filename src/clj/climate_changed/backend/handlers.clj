@@ -101,7 +101,7 @@
 
 (defn era5-summary-handler
   "ERA5 climate summary for a grid cell.
-  Default var for now, returns its descriptive statistics as JSON.
+  Default var for now, returns its temperature-bin observation grid as JSON.
 
   The cell's bounding box is validated against the location spatial index:
   cells with no nearby locations are rejected with a 500 so arbitrary

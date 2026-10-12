@@ -93,8 +93,7 @@
      :padding         "1rem"
      :border-radius   "8px"
      :border          "1px solid var(--border-primary)"
-     :background      "color-mix(in srgb, var(--bg-primary) 80%, transparent)"
-     :backdrop-filter "blur(4px)"
+     :background      "var(--bg-primary)"
      :box-shadow      "0 4px 16px rgba(0,0,0,0.12)"}]
    [:.dataview
     {:font-family   "monospace"
@@ -169,52 +168,19 @@
     {:font-weight "600"
      :margin      "0 0 0.5rem 0"}]
    [:.summary-hint {:color "var(--text-muted)"}]
-   [:.summary-table
-    {:border-collapse "collapse"
-     :width           "100%"}]
-   [:.summary-table :th
-    {:text-align  "center"
-     :color       "var(--text-secondary)"
-     :font-weight "400"
-     :padding     "0.15rem 0.5rem 0.15rem 0"}]
-   [:.summary-table :td
-    {:text-align "center"
-     :padding    "0.15rem 0"}]
-   ;; Mean-temperature line chart (see climate-changed.frontend.charts).
+   ;; Temperature observation-count heatmap (see climate-changed.frontend.charts).
    ;; Descendant selectors are strings because Garden's `[:.a :b]` vector
    ;; form emits a comma-joined list (`.a, b`), not a descendant combinator.
-   [:.mean-temperature-chart
-    {:width   "100%"
-     :height  "240px"
-     :display "block"}]
-   [".mean-temperature-chart .chart-line"
-    {:fill         "none"
-     :stroke       "var(--color-success)"
-     :stroke-width 1.0}]
-   [".mean-temperature-chart circle.chart-point"
-    {:fill         "var(--bg-primary)"
-     :stroke       "var(--color-success)"
-     :stroke-width 1.0}]
-   [".mean-temperature-chart .chart-line--min"
-    {:fill         "none"
-     :stroke       "var(--text-link)"
-     :stroke-width 1.0}]
-   [".mean-temperature-chart .chart-line--max"
-    {:fill         "none"
-     :stroke       "var(--color-error)"
-     :stroke-width 1.0}]
-   [".mean-temperature-chart circle.chart-point--min"
-    {:fill         "var(--bg-primary)"
-     :stroke       "var(--text-link)"
-     :stroke-width 1.0}]
-   [".mean-temperature-chart circle.chart-point--max"
-    {:fill         "var(--bg-primary)"
-     :stroke       "var(--color-error)"
-     :stroke-width 1.0}]
-   [".mean-temperature-chart line.chart-gridline"
-    {:stroke       "var(--border-tertiary)"
-     :stroke-width 1}]
-   [".mean-temperature-chart text.chart-axis-label"
+   [:.temperature-heatmap
+    {:width   "90%"
+     :height  "auto"
+     :display "block"
+     :margin  "0 auto"}]
+   [".temperature-heatmap rect.temperature-heatmap__cell"
+    {:stroke          "none"
+     :stroke-width    0
+     :shape-rendering "crispEdges"}]
+   [".temperature-heatmap text.chart-axis-label"
     {:fill      "var(--text-secondary)"
      :stroke    "none"
      :font-size "0.7rem"}]
