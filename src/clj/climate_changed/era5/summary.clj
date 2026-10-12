@@ -3,9 +3,10 @@
 
   Observations are bucketed into a grid of UTC decades (x) and equal-interval
   temperature bins (y). Temperature bins are computed in Celsius: their edges
-  are whole degrees, the lower edge is a multiple of the chosen bin width, and
-  the bin width is chosen from a 1-5-10 progression so 0 °C and the common
-  5 °C temperature thresholds are bin edges rather than bin interiors."
+  are whole degrees and the bin width is fixed at 2 °C, so every temperature
+  cell spans the same 2 °C range regardless of location. Locations with large
+  annual temperature swings therefore produce taller grids (more bins) rather
+  than coarser ones; 0 °C stays a bin edge."
   (:require
    [climate-changed.era5.duckdb :as duckdb]
    [climate-changed.era5.fetch :as fetch]
@@ -51,23 +52,13 @@
   "Convert a Kelvin temperature to Celsius."
   (fn ^double [^double k] (- k 273.15)))
 
-(def ^:private nice-bin-widths
-  "Whole-degree bin widths in Celsius. The 1-5-10 progression (skipping 2) is
-  deliberate: every width divides 0 and the common 5 °C thresholds, so those
-  important temperature thresholds are always bin edges."
-  [1 5 10 20 50])
-
-(def ^:private max-bin-count
-  "Upper bound on the number of temperature bins. Keeps the y-axis readable."
-  30)
-
-(defn- bin-width
-  "Choose a whole-degree Celsius bin width for a temperature `range-c`. Picks
-  the smallest width in `nice-bin-widths` that yields at most `max-bin-count`
-  bins; ranges too wide for even the coarsest width fall back to that width."
-  ^double [^double range-c]
-  (double (or (first (filter #(<= (/ range-c %) max-bin-count) nice-bin-widths))
-              (last nice-bin-widths))))
+(def ^:private bin-width-c
+  "Fixed Celsius bin width: every temperature cell is 2 °C tall. Fixed (rather
+  than adaptive) so the grid is comparable across locations; a location with a
+  huge temperature swing simply gets more bins (a taller grid) instead of
+  coarser bins. 2 °C keeps 0 °C on a bin edge, and the 30 °C hot-day threshold
+  is even so it too remains a bin edge."
+  2.0)
 
 (defn- floor-to-multiple
   "Largest multiple of `width` that is <= `x`."
@@ -202,7 +193,7 @@
          :max-count 0}
         (let [min-c     (kelvin->celsius (double min-k))
               max-c     (kelvin->celsius (double max-k))
-              width     (bin-width (- max-c min-c))
+              width     bin-width-c
               edges     (bin-edges min-c max-c width)
               bins      (edges->bins edges)
               nbins     (count bins)

@@ -36,17 +36,9 @@
       (is (= 1950 (decade-start-year (java.time.Instant/parse "1950-01-01T00:00:00Z"))))
       (is (= 2020 (decade-start-year (java.time.Instant/parse "2024-06-01T00:00:00Z")))))))
 
-(deftest bin-width-test
-  (let [bin-width #'summary/bin-width]
-    (testing "chooses a whole-degree width that keeps the bin count readable"
-      (is (= 1.0 (bin-width 0.0)))
-      (is (= 1.0 (bin-width 25.0)))
-      (is (= 1.0 (bin-width 30.0)))
-      (is (= 5.0 (bin-width 31.0)))
-      (is (= 5.0 (bin-width 50.0)))
-      (is (= 10.0 (bin-width 200.0))))
-    (testing "falls back to the coarsest width when the range is enormous"
-      (is (= 50.0 (bin-width 1000000.0))))))
+(deftest bin-width-c-test
+  (testing "every temperature cell spans a fixed 2 °C"
+    (is (= 2.0 @#'summary/bin-width-c))))
 
 (deftest bin-edges-test
   (let [bin-edges #'summary/bin-edges]
@@ -56,6 +48,10 @@
       (is (= [0.0 5.0 10.0] (bin-edges 3.0 7.0 5.0))))
     (testing "0 °C is always an edge"
       (is (some #(= 0.0 %) (bin-edges -7.0 8.0 5.0))))
+    (testing "2 °C bins keep 0 °C and 30 °C as edges"
+      (let [edges (bin-edges -7.0 32.0 2.0)]
+        (is (some #(= 0.0 %) edges))
+        (is (some #(= 30.0 %) edges))))
     (testing "a max exactly on an edge becomes the final edge (no empty top bin)"
       (is (= [-20.0 -15.0 -10.0 -5.0 0.0 5.0 10.0 15.0 20.0 25.0 30.0]
              (bin-edges -20.0 30.0 5.0))))))
@@ -141,15 +137,15 @@
       (is (= {:row 198 :col 1020 :lat 40.5 :lon 255.0 :var "t2m" :units "K" :bin-unit "°C"}
              (select-keys result [:row :col :lat :lon :var :units :bin-unit])))
       (is (= (count summary/climate-periods) (count (:periods result))))
-      (testing "bins cover -20 °C .. 30 °C in 5 °C whole-degree intervals"
-        (is (= 10 (count (:bins result))))
+      (testing "bins cover -20 °C .. 30 °C in 2 °C whole-degree intervals"
+        (is (= 25 (count (:bins result))))
         (is (= -20.0 (:min (first (:bins result)))))
         (is (= 30.0 (:max (last (:bins result))))))
       (testing "observations land in their decade and bin"
         (let [periods (:periods result)
               p1940   (find-period periods 1940)
               p2020   (find-period periods 2020)]
-          (is (= [1 2 0 0 0 0 0 0 0 0] (:counts p1940)))
+          (is (= (into [1 2] (repeat 23 0)) (:counts p1940)))
           (is (= 3 (:n p1940)))
           (is (= 5 (nth (:counts p2020) 0)))
           (is (= 5 (:n p2020)))))

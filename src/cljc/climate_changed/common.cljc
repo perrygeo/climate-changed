@@ -90,6 +90,8 @@
      :right           "1rem"
      :z-index         10
      :width           "40%"
+     :max-height      "calc(100vh - 5rem)"
+     :overflow-y      "auto"
      :padding         "1rem"
      :border-radius   "8px"
      :border          "1px solid var(--border-primary)"
@@ -168,6 +170,26 @@
     {:font-weight "600"
      :margin      "0 0 0.5rem 0"}]
    [:.summary-hint {:color "var(--text-muted)"}]
+   ;; Headline climate facts above the heatmap (2000\u2013today vs baseline).
+   [:.summary-facts {:margin "0 0 0.75rem 0"}]
+   [:.summary-facts__intro
+    {:font-weight "600"
+     :font-size   "0.85rem"
+     :margin      "0 0 0.35rem 0"
+     :color       "var(--text-secondary)"}]
+   [:.summary-facts__list
+    {:list-style "none"
+     :margin     "0"
+     :padding    "0"
+     :font-size  "0.85rem"}]
+   [:.summary-facts__label {:color "var(--text-muted)"}]
+   [:.summary-facts__value {:font-weight "600"}]
+   [:.summary-facts__note
+    {:color     "var(--text-muted)"
+     :font-size "0.8rem"}]
+   [:.summary-facts__todo
+    {:color      "var(--text-muted)"
+     :font-style "italic"}]
    ;; Temperature observation-count heatmap (see climate-changed.frontend.charts).
    ;; Descendant selectors are strings because Garden's `[:.a :b]` vector
    ;; form emits a comma-joined list (`.a, b`), not a descendant combinator.
@@ -184,6 +206,15 @@
     {:fill      "var(--text-secondary)"
      :stroke    "none"
      :font-size "0.7rem"}]
+   ;; In dark mode the green ramp is reversed (see charts.cljs); soften it a
+   ;; little so the bright high-count cells don't vibrate against the dark
+   ;; background. Scoped to the color-carrying rects only.
+   (at-media {:prefers-color-scheme "dark"}
+             [".temperature-heatmap rect.temperature-heatmap__cell"
+              {:filter  "saturate(0.72)"
+               :opacity "0.85"}]
+             [".temperature-heatmap .temperature-heatmap__legend rect"
+              {:filter "saturate(0.72)"}])
    [:.chart-hint {:color "var(--text-muted)"}]
    ;; Selected-location card in the side panel.
    [:.location-card {:margin-bottom "0.75rem"}]

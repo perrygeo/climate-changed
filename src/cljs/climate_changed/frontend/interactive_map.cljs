@@ -157,7 +157,7 @@
 (defn locations-map
   "Render the interactive globe map with the locations GeoJSON source"
   []
-  [cartoj/interactive-map {:initial-view-state {:longitude -90 :latitude 40 :zoom 2.5}
+  [cartoj/interactive-map {:initial-view-state {:longitude -100 :latitude 32 :zoom 2.5}
                            :projection         "globe"
                            :max-zoom           11
                            :style-diffing      false

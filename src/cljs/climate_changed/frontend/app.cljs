@@ -145,6 +145,7 @@
         [:p {:class "summary-title"}
          (str (get-in vars/era5-variables [(keyword (:var s)) :name] (:var s))
               ", lat: " (fmt-coord (:lat s)) "°, long: " (fmt-coord (:lon s)) "°")]
+        [charts/summary-facts s]
         [charts/temperature-heatmap s]])]))
 
 (defn temp-unit-toggle
