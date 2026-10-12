@@ -61,6 +61,43 @@
       (is (thrown? clojure.lang.ExceptionInfo
                    (handlers/era5-summary-handler {:route-params {:row "10" :col "20"}}))))))
 
+(deftest era5-means-handler-test
+  (testing "rejects missing or non-integer row/col"
+    (is (= 400 (:status (handlers/era5-means-handler {:route-params {}}))))
+    (is (= 400 (:status (handlers/era5-means-handler {:route-params {:row "abc" :col "10"}})))))
+
+  (testing "404 when no indexed locations fall in the cell"
+    (with-redefs [grid/cell-bbox (fn [_ _] [0 0 1 1])
+                  loc/query      (fn [_] nil)]
+      (let [resp (handlers/era5-means-handler {:route-params {:row "10" :col "20"}})]
+        (is (= 404 (:status resp)))
+        (is (= "no locations in grid cell"
+               (:error (json/parse-string (:body resp) true)))))))
+
+  (testing "200 returns the means as JSON"
+    (with-redefs [grid/cell-bbox     (fn [_ _] [0 0 1 1])
+                  loc/query          (fn [_] [:london])
+                  summary/era5-means (fn [varname row col]
+                                       {:varname varname :row row :col col})]
+      (let [resp (handlers/era5-means-handler {:route-params {:row "10" :col "20"}})
+            body (json/parse-string (:body resp) true)]
+        (is (= 200 (:status resp)))
+        (is (= "application/json" (get-in resp [:headers "Content-Type"])))
+        (is (= "t2m" (:varname body)))
+        (is (= 10 (:row body)))
+        (is (= 20 (:col body))))))
+
+  (testing "passes through ex-data :status errors"
+    (with-redefs [grid/cell-bbox     (fn [_ _] [0 0 1 1])
+                  loc/query          (fn [_] [:london])
+                  summary/era5-means (fn [_ _ _]
+                                       (throw (ex-info "ERA5 fetch already in progress"
+                                                       {:status 423})))]
+      (let [resp (handlers/era5-means-handler {:route-params {:row "10" :col "20"}})]
+        (is (= 423 (:status resp)))
+        (is (= "ERA5 fetch already in progress"
+               (:error (json/parse-string (:body resp) true))))))))
+
 (deftest tiles-s2cloudless-handler-test
   (testing "rejects non-integer params"
     (is (= 400 (:status (handlers/tiles-s2cloudless-handler {:route-params {}}))))

@@ -22,4 +22,5 @@
         "api/locations/stats"                   (get-only :location-stats)
         ["tiles/s2cloudless/" :z "/" :y "/" :x] (get-only :tiles-s2cloudless)
         ["api/era5-summary/" :row "/" :col]     (get-only :era5-summary)
+        ["api/era5-means/" :row "/" :col]       (get-only :era5-means)
         "api/locations"                         (get-only :locations)}])

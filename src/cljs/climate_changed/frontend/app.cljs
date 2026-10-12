@@ -81,16 +81,42 @@
                   (when (= loc (:selected-location @state/state))
                     (swap! state/state assoc :era5-summary {:error (str err)})))))))
 
+(defn fetch-era5-means!
+  "Snap `loc` to the ERA5 grid and fetch that cell's per-decade mean
+  temperature into the `:era5-means` key of the shared state atom."
+  [{:keys [longitude latitude] :as loc}]
+  (let [{:keys [row col]} (grid/snap-coords longitude latitude)]
+    (swap! state/state assoc :era5-means {:loading? true})
+    (-> (js/fetch (bidi/path-for routes/routes :era5-means :row row :col col))
+        (.then (fn [resp]
+                 (if (.-ok resp)
+                   (.json resp)
+                   (throw (js/Error. (str "HTTP " (.-status resp)))))))
+        (.then (fn [^js data]
+                 (when (= loc (:selected-location @state/state))
+                   (swap! state/state assoc :era5-means (js->clj data :keywordize-keys true)))))
+        (.catch (fn [err]
+                  (when (= loc (:selected-location @state/state))
+                    (swap! state/state assoc :era5-means {:error (str err)})))))))
+
 (defonce era5-summary-watch
-  ;; Whenever the selected location changes, (re)load the ERA5 summary for
-  ;; its snapped grid cell; clear it when the selection is cleared.
+  ;; Whenever the selected location changes, (re)load the ERA5 summary and then
+  ;; its per-decade means for the snapped grid cell; clear both on deselection.
+  ;; The means request is chained after the summary so a cold cell is fetched
+  ;; once rather than both endpoints racing `ensure-ts!` (and one getting 423).
   (add-watch state/state :era5-summary
              (fn [_ _ old new]
                (let [loc (:selected-location new)]
                  (when (not= (:selected-location old) loc)
                    (if (and loc (:longitude loc) (:latitude loc))
-                     (fetch-era5-summary! loc)
-                     (swap! state/state assoc :era5-summary nil)))))))
+                     (do
+                       (swap! state/state assoc :era5-summary {:loading? true}
+                              :era5-means {:loading? true})
+                       (-> (fetch-era5-summary! loc)
+                           (.then (fn [_]
+                                    (when (= loc (:selected-location @state/state))
+                                      (fetch-era5-means! loc))))))
+                     (swap! state/state assoc :era5-summary nil :era5-means nil)))))))
 
 (comment
   era5-summary-watch)
@@ -128,30 +154,32 @@
            (str "Population: " (fmt-population population))])])]))
 
 (defn era5-summary-view []
-  (let [s (:era5-summary @state/state)]
+  (let [{:keys [era5-summary era5-means temp-unit]} @state/state
+        s era5-summary
+        m era5-means]
     [:div {:class "era5-summary"}
      (cond
-       (nil? s)
+       (or (nil? s) (nil? m))
        [:p {:class "summary-hint"} "Click a location to load its climate summary"]
 
-       (:loading? s)
+       (or (:loading? s) (:loading? m))
        [:p {:class "summary-hint"} "Loading climate summary…"]
 
-       (:error s)
-       [:p {:class "error"} (:error s)]
+       (or (:error s) (:error m))
+       [:p {:class "error"} (or (:error s) (:error m))]
 
        :else
        [:div {:class "dataview"}
         [:p {:class "summary-title"}
          (str (get-in vars/era5-variables [(keyword (:var s)) :name] (:var s))
               ", lat: " (fmt-coord (:lat s)) "°, long: " (fmt-coord (:lon s)) "°")]
-        [charts/summary-facts s]
-        [charts/temperature-heatmap s]])]))
+        [charts/summary-facts s m temp-unit]
+        [charts/temperature-heatmap s m]])]))
 
 (defn temp-unit-toggle
   "Segmented °C/°F control in the header. The heatmap stays on Celsius with
-  Fahrenheit reference labels, so this toggle is kept for future temperature
-  readouts (see climate-changed.frontend.units)."
+  Fahrenheit reference labels; the toggle drives the temperature readouts in
+  the summary facts (see climate-changed.frontend.units)."
   []
   (let [unit (:temp-unit @state/state)]
     [:div {:class "temp-unit-toggle" :role "group" :aria-label "Temperature units"}

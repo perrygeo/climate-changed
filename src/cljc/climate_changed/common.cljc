@@ -10,6 +10,9 @@
     {:--bg-primary       "#ffffff"
      :--bg-secondary     "#f6f8fa"
      :--bg-selected      "#eef"
+     :--chart-bg         "#d9dde3"
+     :--chart-grid       "#eef1f4"
+     :--chart-cell       "#334155"
      :--text-primary     "#333333"
      :--text-secondary   "#656d76"
      :--text-muted       "#999999"
@@ -24,6 +27,9 @@
               {:--bg-primary       "#1a1a2e"
                :--bg-secondary     "#16213e"
                :--bg-selected      "#1f2d4a"
+               :--chart-bg         "#12182a"
+               :--chart-grid       "#2a3246"
+               :--chart-cell       "#ffffff"
                :--text-primary     "#e1e4e8"
                :--text-secondary   "#8b949e"
                :--text-muted       "#586069"
@@ -194,27 +200,41 @@
    ;; Descendant selectors are strings because Garden's `[:.a :b]` vector
    ;; form emits a comma-joined list (`.a, b`), not a descendant combinator.
    [:.temperature-heatmap
-    {:width   "90%"
-     :height  "auto"
-     :display "block"
-     :margin  "0 auto"}]
+    {:width      "90%"
+     :height     "auto"
+     :max-height "600px"
+     :display    "block"
+     :margin     "0 auto"
+     :background "var(--chart-bg)"}]
    [".temperature-heatmap rect.temperature-heatmap__cell"
-    {:stroke          "none"
-     :stroke-width    0
-     :shape-rendering "crispEdges"}]
+    {:stroke          "var(--chart-grid)"
+     :stroke-width    1
+     :shape-rendering "crispEdges"
+     :pointer-events  "all"}]
+   [".temperature-heatmap line"
+    {:pointer-events "none"}]
+   [".temperature-heatmap polyline.temperature-heatmap__mean-line"
+    {:pointer-events "none"}]
+   [".temperature-heatmap circle.temperature-heatmap__mean-point"
+    {:pointer-events "none"}]
    [".temperature-heatmap text.chart-axis-label"
-    {:fill      "var(--text-secondary)"
-     :stroke    "none"
-     :font-size "0.7rem"}]
-   ;; In dark mode the green ramp is reversed (see charts.cljs); soften it a
-   ;; little so the bright high-count cells don't vibrate against the dark
-   ;; background. Scoped to the color-carrying rects only.
-   (at-media {:prefers-color-scheme "dark"}
-             [".temperature-heatmap rect.temperature-heatmap__cell"
-              {:filter  "saturate(0.72)"
-               :opacity "0.85"}]
-             [".temperature-heatmap .temperature-heatmap__legend rect"
-              {:filter "saturate(0.72)"}])
+    {:fill           "var(--text-secondary)"
+     :stroke         "none"
+     :font-size      "0.7rem"
+     :pointer-events "none"}]
+   [:.temperature-heatmap__tooltip
+    {:position       "fixed"
+     :z-index        30
+     :pointer-events "none"
+     :background     "var(--bg-primary)"
+     :color          "var(--text-primary)"
+     :border         "1px solid var(--border-secondary)"
+     :border-radius  "4px"
+     :padding        "0.35rem 0.5rem"
+     :font-size      "0.8rem"
+     :line-height    "1.2"
+     :box-shadow     "0 2px 8px rgba(0,0,0,0.18)"
+     :white-space    "nowrap"}]
    [:.chart-hint {:color "var(--text-muted)"}]
    ;; Selected-location card in the side panel.
    [:.location-card {:margin-bottom "0.75rem"}]

@@ -131,6 +131,36 @@
        :headers {"Content-Type" "application/json"}
        :body    (json/generate-string {:error "row and col must be integers"})})))
 
+(defn era5-means-handler
+  "ERA5 per-decade mean temperature for a grid cell.
+
+  Mirrors `era5-summary-handler` validation: the cell's bounding box is checked
+  against the location spatial index, and in-flight/over-capacity ERA5 fetches
+  surface as 423."
+  [{:keys [route-params]}]
+  (let [row (->long (:row route-params))
+        col (->long (:col route-params))]
+    (if (and row col)
+      (let [bbox (grid/cell-bbox row col)]
+        (if (seq (loc/query bbox))
+          (try
+            (let [means (summary/era5-means vars/default-varname row col)]
+              {:status  200
+               :headers {"Content-Type" "application/json"}
+               :body    (json/generate-string means)})
+            (catch clojure.lang.ExceptionInfo e
+              (if-let [status (:status (ex-data e))]
+                {:status  status
+                 :headers {"Content-Type" "application/json"}
+                 :body    (json/generate-string {:error (ex-message e)})}
+                (throw e))))
+          {:status  404
+           :headers {"Content-Type" "application/json"}
+           :body    (json/generate-string {:error "no locations in grid cell"})}))
+      {:status  400
+       :headers {"Content-Type" "application/json"}
+       :body    (json/generate-string {:error "row and col must be integers"})})))
+
 (defn tiles-s2cloudless-handler
   "Proxy Sentinel-2 cloudless satellite tiles from EOX through the
   `:tiles-s2cloudless` route, with an in-memory cache. Validates z/y/x so

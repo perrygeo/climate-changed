@@ -112,6 +112,84 @@
       (is (= [0 0 0] (:counts (last periods))))
       (is (zero? (:n (last periods)))))))
 
+(deftest decade-mean-sql-test
+  (let [decade-mean-sql #'summary/decade-mean-sql
+        sql             (decade-mean-sql "t2m" "era_ts/182/104/t2m.parquet")]
+    (testing "groups by UTC decade"
+      (is (re-find #"\(year\(valid_time\) // 10\) \* 10 AS decade" sql)))
+    (testing "averages the Kelvin column and counts observations"
+      (is (re-find #"avg\(t2m\)::DOUBLE AS mean_k" sql))
+      (is (re-find #"count\(\*\) AS n" sql)))
+    (testing "reads the given parquet path and ignores nulls"
+      (is (re-find #"FROM 'era_ts/182/104/t2m\.parquet'" sql))
+      (is (re-find #"WHERE t2m IS NOT NULL" sql)))))
+
+(deftest decade-means-test
+  (let [decade-means #'summary/decade-means
+        result       (ds/->dataset {:decade [1940 1950 2020]
+                                    :mean_k [283.15 293.15 273.15]
+                                    :n      [100 200 50]})
+        means        (decade-means result)]
+    (testing "converts Kelvin means to Celsius and keeps observation counts"
+      (is (< (Math/abs (- 10.0 (:mean (get means 1940)))) 1e-9))
+      (is (= 100 (:n (get means 1940))))
+      (is (< (Math/abs (- 20.0 (:mean (get means 1950)))) 1e-9))
+      (is (= 200 (:n (get means 1950))))
+      (is (< (Math/abs (- 0.0 (:mean (get means 2020)))) 1e-9))
+      (is (= 50 (:n (get means 2020)))))))
+
+(deftest fill-mean-periods-test
+  (let [fill-mean-periods #'summary/fill-mean-periods
+        periods           (fill-mean-periods {1940 {:mean 10.0 :n 3}
+                                              2020 {:mean 0.0 :n 5}})]
+    (testing "observed decades get their mean and count"
+      (let [p1940 (find-period periods 1940)]
+        (is (= 10.0 (:mean p1940)))
+        (is (= 3 (:n p1940))))
+      (let [p2020 (find-period periods 2020)]
+        (is (= 0.0 (:mean p2020)))
+        (is (= 5 (:n p2020)))))
+    (testing "decades without observations get nil mean and zero n"
+      (let [p1950 (find-period periods 1950)]
+        (is (nil? (:mean p1950)))
+        (is (zero? (:n p1950)))))))
+
+(deftest era5-means-test
+  (testing "rejects unknown varnames with a 400 ex-data"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Unknown ERA5 variable"
+                          (summary/era5-means "nope" 198 1020))))
+
+  (testing "rejects non-Kelvin variables with a 400 ex-data"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"require a Kelvin variable"
+                          (summary/era5-means "sp" 198 1020))))
+
+  (testing "assembles grid metadata and per-period means"
+    (let [means-ds (ds/->dataset {:decade [1940 1950 2020]
+                                  :mean_k [283.15 293.15 273.15]
+                                  :n      [100 200 50]})
+          result   (with-redefs [fetch/ensure-ts! (fn [varname _row _col]
+                                                    (is (= "t2m" varname))
+                                                    "era_ts/198/1020/t2m.parquet")
+                                 duckdb/query     (fn [_] means-ds)]
+                     (summary/era5-means "t2m" 198 1020))]
+      (is (= {:row 198 :col 1020 :lat 40.5 :lon 255.0 :var "t2m" :units "K" :mean-unit "°C"}
+             (select-keys result [:row :col :lat :lon :var :units :mean-unit])))
+      (is (= (count summary/climate-periods) (count (:periods result))))
+      (testing "means are filled by decade and converted from Kelvin"
+        (let [periods (:periods result)
+              p1940   (find-period periods 1940)
+              p1950   (find-period periods 1950)
+              p2020   (find-period periods 2020)
+              p1960   (find-period periods 1960)]
+          (is (< (Math/abs (- 10.0 (:mean p1940))) 1e-9))
+          (is (= 100 (:n p1940)))
+          (is (< (Math/abs (- 20.0 (:mean p1950))) 1e-9))
+          (is (= 200 (:n p1950)))
+          (is (< (Math/abs (- 0.0 (:mean p2020))) 1e-9))
+          (is (= 50 (:n p2020)))
+          (is (nil? (:mean p1960)))
+          (is (zero? (:n p1960))))))))
+
 (deftest era5-summary-test
   (testing "rejects unknown varnames with a 400 ex-data"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Unknown ERA5 variable"
@@ -149,7 +227,7 @@
           (is (= 3 (:n p1940)))
           (is (= 5 (nth (:counts p2020) 0)))
           (is (= 5 (:n p2020)))))
-      (testing "color-ramp denominator is the max period × bin count"
+      (testing "opacity denominator is the max period × bin count"
         (is (= 5 (:max-count result))))))
 
   (testing "cells with no observations return empty bins and zeroed periods"

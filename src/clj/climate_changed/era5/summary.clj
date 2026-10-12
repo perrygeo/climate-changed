@@ -138,7 +138,8 @@
         climate-periods))
 
 (defn- matrix-max-count
-  "The largest period × bin observation count, for normalizing the color ramp."
+  "The largest period × bin observation count, for normalizing the continuous
+  opacity scale."
   [periods]
   (reduce max 0 (mapcat :counts periods)))
 
@@ -151,6 +152,76 @@
            :n      0})
         climate-periods))
 
+(defn- decade-mean-sql
+  "DuckDB SQL returning each UTC decade's mean Kelvin temperature and
+  observation count for `varname`."
+  [varname parquet-path]
+  (str "SELECT (year(valid_time) // 10) * 10 AS decade,"
+       " avg(" varname ")::DOUBLE AS mean_k,"
+       " count(*) AS n"
+       " FROM '" parquet-path "'"
+       " WHERE " varname " IS NOT NULL"
+       " GROUP BY decade"
+       " ORDER BY decade"))
+
+(defn- decade-means
+  "Map of decade start year -> {:mean :n}, from the mean query result.
+  `mean_k` is converted from Kelvin to Celsius."
+  [result]
+  (reduce (fn [acc row]
+            (assoc acc
+                   (long (:decade row))
+                   {:mean (kelvin->celsius (double (:mean_k row)))
+                    :n    (long (:n row))}))
+          {}
+          (ds/rows result)))
+
+(defn- fill-mean-periods
+  "Fill a per-period mean map for every climate period. Periods with no
+  observations get a nil :mean and zero :n."
+  [by-decade]
+  (mapv (fn [{:keys [start end]}]
+          (let [decade (decade-start-year start)
+                {:keys [mean n]} (get by-decade decade)]
+            {:start (str start)
+             :end   (some-> end str)
+             :mean  mean
+             :n     (or n 0)}))
+        climate-periods))
+
+(defn era5-means
+  "Per-decade mean temperature for a grid cell's ERA5 timeseries.
+
+  Returns:
+    :row, :col, :lat, :lon   grid metadata
+    :var, :units             the ERA5 variable and its native unit
+    :mean-unit               unit of the :mean values (\"°C\")
+    :periods                 [{:start :end :mean :n} ...] one per decade,
+                             with :mean in °C and :n the observation count;
+                             periods without data have a nil :mean and 0 :n."
+  [varname row col]
+  (when-not (vars/valid-varname? varname)
+    (throw (ex-info (str "Unknown ERA5 variable: " varname)
+                    {:status 400 :varname varname})))
+  (let [units (get-in vars/era5-variables [(keyword varname) :units])]
+    (when-not (= "K" units)
+      (throw (ex-info (str "ERA5 mean-temperature summaries require a Kelvin variable, got " units)
+                      {:status 400 :varname varname :units units})))
+    (let [parquet-path      (fetch/ensure-ts! varname row col)
+          {:keys [lat lon]} (grid/cell-center row col)
+          by-decade         (-> (decade-mean-sql varname parquet-path)
+                                (duckdb/query)
+                                (decade-means))
+          periods           (fill-mean-periods by-decade)]
+      {:row       row
+       :col       col
+       :lat       lat
+       :lon       lon
+       :var       varname
+       :units     units
+       :mean-unit "°C"
+       :periods   periods})))
+
 (defn era5-summary
   "Climate summary for a grid cell as a temperature-bin observation grid.
 
@@ -161,7 +232,8 @@
     :bins                    [{:min :max} ...] whole-degree Celsius bin edges
     :periods                 [{:start :end :counts :n} ...] one per decade,
                              with :counts aligned to :bins
-    :max-count               max period × bin count (color-ramp denominator)"
+    :max-count               max period × bin count (continuous opacity
+                             denominator)"
   [varname row col]
   (when-not (vars/valid-varname? varname)
     (throw (ex-info (str "Unknown ERA5 variable: " varname)
